@@ -22,7 +22,7 @@ export function FeedStackNavigator() {
       <Stack.Screen
         name="FeedHome"
         component={FeedHomeScreen}
-        options={{ title: 'Nibbly', headerLargeTitle: false }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="RecipeSearch"

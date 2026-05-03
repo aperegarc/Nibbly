@@ -18,11 +18,7 @@ export function WeeklyStackNavigator() {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen
-        name="WeeklyHome"
-        component={WeeklyMenuScreen}
-        options={{ title: 'Menú semanal', headerLargeTitle: false }}
-      />
+      <Stack.Screen name="WeeklyHome" component={WeeklyMenuScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="RecipeDetail"
         component={RecipeDetailScreen}

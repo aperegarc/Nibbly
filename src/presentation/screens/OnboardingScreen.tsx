@@ -1,16 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useLayoutEffect, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useProfile } from '../../app/providers/ProfileProvider';
+import { Nibbly } from '../components/nibbly/Nibbly';
 import { SignOutHeaderButton } from '../components/SignOutHeaderButton';
 import { TagChipsEditor } from '../components/TagChipsEditor';
 import { DIET_OPTIONS } from '../constants/dietOptions';
@@ -19,11 +14,22 @@ import type { DietType } from '../../domain/entities/Recipe';
 import { LIMITS } from '../../shared/utils/limits';
 import { sanitizeUserTag } from '../../shared/utils/sanitize';
 import { colors } from '../theme/colors';
+import { elevation } from '../theme/shadows';
+import { fontFamilies } from '../theme/fonts';
 import { radius } from '../theme/radius';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Onboarding'>;
+
+const DIET_ICONS: Record<DietType, keyof typeof Ionicons.glyphMap> = {
+  balanced: 'nutrition-outline',
+  vegan: 'leaf-outline',
+  vegetarian: 'flower-outline',
+  keto: 'flash-outline',
+  paleo: 'barbell-outline',
+  gluten_free: 'pizza-outline',
+};
 
 export function OnboardingScreen({ navigation }: Props) {
   const { completeOnboarding } = useProfile();
@@ -31,12 +37,6 @@ export function OnboardingScreen({ navigation }: Props) {
   const [allergyTags, setAllergyTags] = useState<string[]>([]);
   const [preferenceTags, setPreferenceTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => <SignOutHeaderButton />,
-    });
-  }, [navigation]);
 
   const addAllergy = (value: string) => {
     const next = sanitizeUserTag(value, LIMITS.profileTagMaxLength);
@@ -90,65 +90,118 @@ export function OnboardingScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.lead}>
-          Cuéntanos cómo comes para personalizar sugerencias y filtrar alergias.
-        </Text>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <View style={styles.topBar}>
+        <View style={styles.topBrand}>
+          <View style={styles.miniMascot}>
+            <Nibbly state="feliz" size={32} />
+          </View>
+          <Text style={styles.topBrandText}>Nibbly</Text>
+        </View>
+        <SignOutHeaderButton variant="icon" />
+      </View>
 
-        <Text style={styles.section}>Dieta principal</Text>
-        <View style={styles.dietGrid}>
-          {DIET_OPTIONS.map((option) => {
-            const selected = diet === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                onPress={() => setDiet(option.value)}
-                style={[styles.dietChip, selected && styles.dietChipSelected]}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-              >
-                <Text style={[styles.dietLabel, selected && styles.dietLabelSelected]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
+      <ScrollView
+        contentContainerStyle={styles.scrollBody}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.heroRow}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroTitle}>Personaliza tu experiencia</Text>
+            <Text style={styles.heroLead}>
+              Esto nos ayuda a sugerirte recetas que te encantarán y evitar alergias. ¡Queremos que cada bocado sea
+              perfecto para ti!
+            </Text>
+          </View>
+          <View style={styles.heroMascotWrap}>
+            <View style={styles.heroGlow} />
+            <Nibbly state="celebrando" size={140} accessibilityLabel="Nibbly te da la bienvenida" />
+          </View>
         </View>
 
-        <TagChipsEditor
-          label="Alergias o intolerancias"
-          tags={allergyTags}
-          onAdd={addAllergy}
-          onRemove={(tag) => setAllergyTags((prev) => prev.filter((item) => item !== tag))}
-          placeholder="Ej. cacahuete, lactosa…"
-          maxTags={LIMITS.profileTagMaxCount}
-          maxLength={LIMITS.profileTagMaxLength}
-          hint="Las recetas que contengan estos términos en ingredientes o título se ocultarán."
-        />
+        <View style={[styles.bento, elevation.cardSoft]}>
+          <View style={styles.bentoHead}>
+            <Ionicons name="restaurant" size={22} color={colors.accent} />
+            <Text style={styles.bentoTitle}>Tu dieta principal</Text>
+          </View>
+          <View style={styles.dietGrid}>
+            {DIET_OPTIONS.map((option) => {
+              const selected = diet === option.value;
+              const iconName = DIET_ICONS[option.value];
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => setDiet(option.value)}
+                  style={[styles.dietTile, selected && styles.dietTileSelected]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                >
+                  <View style={[styles.dietIconCircle, selected && styles.dietIconCircleSelected]}>
+                    <Ionicons name={iconName} size={22} color={selected ? colors.accentForeground : colors.accent} />
+                  </View>
+                  <Text style={styles.dietTileLabel}>{option.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
-        <TagChipsEditor
-          label="Preferencias"
-          tags={preferenceTags}
-          onAdd={addPreference}
-          onRemove={(tag) => setPreferenceTags((prev) => prev.filter((item) => item !== tag))}
-          placeholder="Ej. picante, batch cooking…"
-          maxTags={LIMITS.profileTagMaxCount}
-          maxLength={LIMITS.profileTagMaxLength}
-          hint="Las usaremos en pasos posteriores para afinar recomendaciones."
-        />
+        <View style={styles.allergyBlock}>
+          <View style={styles.bentoHead}>
+            <Ionicons name="warning" size={22} color={colors.danger} />
+            <Text style={styles.bentoTitle}>Alergias o intolerancias</Text>
+          </View>
+          <TagChipsEditor
+            label=""
+            tags={allergyTags}
+            onAdd={addAllergy}
+            onRemove={(tag) => setAllergyTags((prev) => prev.filter((item) => item !== tag))}
+            placeholder="Ej. cacahuete, lactosa…"
+            maxTags={LIMITS.profileTagMaxCount}
+            maxLength={LIMITS.profileTagMaxLength}
+            hint="Las recetas que contengan estos términos en ingredientes o título se ocultarán."
+          />
+        </View>
 
-        <Pressable
-          onPress={onSubmit}
-          disabled={submitting}
-          style={({ pressed }) => [
-            styles.primary,
-            pressed && styles.primaryPressed,
-            submitting && styles.primaryDisabled,
-          ]}
-          accessibilityRole="button"
-        >
-          <Text style={styles.primaryText}>{submitting ? 'Guardando…' : 'Continuar'}</Text>
-        </Pressable>
+        <View style={styles.prefBlock}>
+          <View style={styles.bentoHead}>
+            <Ionicons name="heart" size={22} color={colors.secondary} />
+            <Text style={styles.bentoTitle}>Preferencias gastronómicas</Text>
+          </View>
+          <TagChipsEditor
+            label=""
+            tags={preferenceTags}
+            onAdd={addPreference}
+            onRemove={(tag) => setPreferenceTags((prev) => prev.filter((item) => item !== tag))}
+            placeholder="Ej. picante, batch cooking…"
+            maxTags={LIMITS.profileTagMaxCount}
+            maxLength={LIMITS.profileTagMaxLength}
+            hint="Las usaremos para afinar recomendaciones."
+          />
+        </View>
+
+        <View style={{ height: 120 }} />
       </ScrollView>
+
+      <View style={styles.bottomCta}>
+        <SafeAreaView edges={['bottom']} style={styles.bottomSafe}>
+          <Pressable
+            onPress={onSubmit}
+            disabled={submitting}
+            style={({ pressed }) => [
+              styles.primary,
+              elevation.primaryButton,
+              pressed && styles.primaryPressed,
+              submitting && styles.primaryDisabled,
+            ]}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryText}>{submitting ? 'Guardando…' : 'Guardar y continuar'}</Text>
+            <Ionicons name="arrow-forward" size={22} color={colors.accentForeground} />
+          </Pressable>
+        </SafeAreaView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -158,48 +211,169 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  body: {
-    padding: spacing.xl,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSoft,
+    backgroundColor: colors.toolbar,
+  },
+  topBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  miniMascot: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.primaryContainer,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  topBrandText: {
+    fontFamily: fontFamilies.display,
+    fontSize: 22,
+    color: colors.accent,
+    letterSpacing: -0.4,
+  },
+  scrollBody: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    gap: spacing.xl,
+  },
+  heroRow: {
     gap: spacing.lg,
   },
-  lead: {
-    ...typography.body,
-    color: colors.textSecondary,
+  heroCopy: {
+    gap: spacing.md,
   },
-  section: {
-    ...typography.subtitle,
+  heroTitle: {
+    fontFamily: fontFamilies.display,
+    fontSize: 30,
+    letterSpacing: -0.6,
+    lineHeight: 36,
+    color: colors.textPrimary,
+  },
+  heroLead: {
+    ...typography.body,
+    fontSize: 17,
+    color: colors.textSecondary,
+    maxWidth: 520,
+  },
+  heroMascotWrap: {
+    alignSelf: 'center',
+    width: 180,
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroGlow: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.primaryContainer,
+    opacity: 0.12,
+    borderRadius: 999,
+    transform: [{ scale: 1.05 }],
+  },
+  bento: {
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.xxl,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(221, 193, 179, 0.45)',
+    gap: spacing.lg,
+  },
+  bentoHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  bentoTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 19,
     color: colors.textPrimary,
   },
   dietGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  dietTile: {
+    width: '47%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    alignItems: 'center',
     gap: spacing.sm,
   },
-  dietChip: {
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+  dietTileSelected: {
+    borderColor: colors.primaryContainer,
     backgroundColor: colors.surface,
+    ...elevation.cardSoft,
   },
-  dietChipSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
+  dietIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  dietLabel: {
-    ...typography.body,
+  dietIconCircleSelected: {
+    backgroundColor: colors.primaryContainer,
+  },
+  dietTileLabel: {
+    ...typography.label,
+    textAlign: 'center',
     color: colors.textPrimary,
   },
-  dietLabelSelected: {
-    fontWeight: '600',
+  allergyBlock: {
+    backgroundColor: 'rgba(255, 218, 214, 0.35)',
+    borderRadius: radius.xxl,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(186, 26, 26, 0.12)',
+    gap: spacing.md,
+  },
+  prefBlock: {
+    backgroundColor: 'rgba(182, 237, 194, 0.2)',
+    borderRadius: radius.xxl,
+    padding: spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(55, 104, 71, 0.15)',
+    gap: spacing.md,
+  },
+  bottomCta: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 248, 245, 0.94)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSoft,
+  },
+  bottomSafe: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
   },
   primary: {
-    marginTop: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.lg,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.accent,
+    borderRadius: radius.full,
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.sm,
   },
   primaryPressed: {
     opacity: 0.92,
@@ -208,7 +382,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryText: {
-    ...typography.subtitle,
+    fontFamily: fontFamilies.bold,
+    fontSize: 17,
     color: colors.accentForeground,
   },
 });

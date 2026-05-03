@@ -1,9 +1,11 @@
 /**
- * Nombres registrados con useFonts — deben coincidir con las claves del mapa de carga.
+ * Display: Plus Jakarta Sans · Cuerpo/UI: Be Vietnam Pro (brief Stitch).
  */
 export const fontFamilies = {
-  regular: 'DMSans_400Regular',
-  medium: 'DMSans_500Medium',
-  semiBold: 'DMSans_600SemiBold',
-  bold: 'DMSans_700Bold',
+  regular: 'BeVietnamPro_400Regular',
+  medium: 'BeVietnamPro_500Medium',
+  semiBold: 'BeVietnamPro_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  /** Títulos de marca / hero */
+  display: 'PlusJakartaSans_800ExtraBold',
 } as const;

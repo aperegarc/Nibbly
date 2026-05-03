@@ -1,4 +1,3 @@
-import { useHeaderHeight } from '@react-navigation/elements';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,6 +21,7 @@ import { useDiscoveryPreferences } from '../../app/providers/DiscoveryPreference
 import { useProfile } from '../../app/providers/ProfileProvider';
 import { useShoppingList } from '../../app/providers/ShoppingListProvider';
 import type { Recipe } from '../../domain/entities/Recipe';
+import { FeedAppBar } from '../components/FeedAppBar';
 import { RecipeFeedCard } from '../components/feed/RecipeFeedCard';
 import { Nibbly, nibblySemantics } from '../components/nibbly';
 import { FeedToolbar } from '../components/FeedToolbar';
@@ -30,6 +30,8 @@ import { RecipeFilterModal } from '../components/RecipeFilterModal';
 import { useFavorites } from '../hooks/useFavorites';
 import { useRecipeFeed } from '../hooks/useRecipeFeed';
 import type { FeedStackParamList } from '../navigation/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -49,10 +51,10 @@ export function RecipeFeedScreen() {
   } = useShoppingList();
   const userId = session?.user.id;
   const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = useHeaderHeight();
-  const estimatedToolbar = 120;
+  const insets = useSafeAreaInsets();
+  const estimatedChrome = 220;
   const [listViewportHeight, setListViewportHeight] = useState(() =>
-    Math.max(280, windowHeight - headerHeight - estimatedToolbar),
+    Math.max(280, windowHeight - insets.top - insets.bottom - estimatedChrome),
   );
 
   const [filterOpen, setFilterOpen] = useState(false);
@@ -266,7 +268,7 @@ export function RecipeFeedScreen() {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={headerHeight}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <RecipeFilterModal
         visible={filterOpen}
@@ -290,12 +292,15 @@ export function RecipeFeedScreen() {
         onComplete={handleQuickDecideComplete}
       />
 
+      <FeedAppBar
+        onSearch={() => navigation.navigate('RecipeSearch')}
+        onOpenFilters={() => setFilterOpen(true)}
+        onOpenSurprise={() => setQuickDecideOpen(true)}
+      />
       <FeedToolbar
         ingredientTags={discovery.ingredientTags}
         onAddIngredient={discovery.addIngredientTag}
         onRemoveIngredient={discovery.removeIngredientTag}
-        onOpenFilters={() => setFilterOpen(true)}
-        onOpenSurprise={() => setQuickDecideOpen(true)}
       />
 
       {status === 'error' && errorMessage ? (
@@ -313,6 +318,7 @@ export function RecipeFeedScreen() {
         <FlatList
           ref={listRef}
           style={styles.list}
+          contentContainerStyle={styles.listContent}
           data={recipes}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
@@ -379,6 +385,10 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 112,
   },
   centered: {
     flex: 1,

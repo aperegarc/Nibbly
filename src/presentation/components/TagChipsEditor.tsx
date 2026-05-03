@@ -172,10 +172,10 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: colors.chipBorder,
+    borderColor: colors.border,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.chipBackground,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceCard,
   },
   chipPressed: {
     opacity: 0.85,

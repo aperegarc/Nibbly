@@ -8,3 +8,8 @@ export const DIET_OPTIONS: { value: DietType; label: string }[] = [
   { value: 'paleo', label: 'Paleo' },
   { value: 'gluten_free', label: 'Sin gluten' },
 ];
+
+export function dietBadgeLabel(diet: DietType): string {
+  const found = DIET_OPTIONS.find((o) => o.value === diet);
+  return found?.label ?? diet;
+}

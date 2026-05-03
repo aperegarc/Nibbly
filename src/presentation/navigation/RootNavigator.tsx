@@ -65,11 +65,7 @@ function AppGate() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        <AppStack.Screen
-          name="Onboarding"
-          component={OnboardingScreen}
-          options={{ title: 'Tu perfil', headerLargeTitle: false }}
-        />
+        <AppStack.Screen name="Onboarding" component={OnboardingScreen} options={{ headerShown: false }} />
         <AppStack.Screen name="Main" component={MainTabNavigator} options={{ headerShown: false }} />
       </AppStack.Navigator>
     </DiscoveryPreferencesProvider>

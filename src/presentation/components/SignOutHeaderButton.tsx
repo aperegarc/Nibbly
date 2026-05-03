@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
@@ -6,7 +7,11 @@ import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 
-export function SignOutHeaderButton() {
+type Props = {
+  variant?: 'text' | 'icon';
+};
+
+export function SignOutHeaderButton({ variant = 'text' }: Props) {
   const { signOut } = useAuth();
   const [busy, setBusy] = useState(false);
 
@@ -27,6 +32,8 @@ export function SignOutHeaderButton() {
     >
       {busy ? (
         <ActivityIndicator color={colors.accent} />
+      ) : variant === 'icon' ? (
+        <Ionicons name="log-out-outline" size={22} color={colors.textMuted} />
       ) : (
         <Text style={styles.label}>Salir</Text>
       )}

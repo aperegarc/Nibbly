@@ -1,5 +1,7 @@
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useLayoutEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -19,14 +21,18 @@ import { useShoppingList } from '../../app/providers/ShoppingListProvider';
 import type { ShoppingListItem } from '../../domain/entities/ShoppingListItem';
 import { LIMITS } from '../../shared/utils/limits';
 import { CatalogIngredientInput } from '../components/CatalogIngredientInput';
-import { SignOutHeaderButton } from '../components/SignOutHeaderButton';
+import { Nibbly } from '../components/nibbly';
+import { StitchSubScreenHeader } from '../components/StitchSubScreenHeader';
+import type { MainTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { elevation } from '../theme/shadows';
+import { fontFamilies } from '../theme/fonts';
 import { radius } from '../theme/radius';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
 
 export function ShoppingListScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const { session } = useAuth();
   const userId = session?.user.id;
   const {
@@ -83,31 +89,6 @@ export function ShoppingListScreen() {
     }
   }, [shareMessage]);
 
-  useLayoutEffect(() => {
-    if (!userId) {
-      navigation.setOptions({
-        headerRight: () => <SignOutHeaderButton />,
-      });
-      return;
-    }
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerRight}>
-          <Pressable
-            onPress={() => void onShare()}
-            style={styles.headerLink}
-            accessibilityRole="button"
-            accessibilityLabel="Compartir lista"
-            hitSlop={8}
-          >
-            <Text style={styles.headerLinkText}>Compartir</Text>
-          </Pressable>
-          <SignOutHeaderButton />
-        </View>
-      ),
-    });
-  }, [navigation, onShare, userId]);
-
   if (!userId) {
     return (
       <View style={styles.centered}>
@@ -122,30 +103,34 @@ export function ShoppingListScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
-    <View style={styles.flexGrow}>
-      <View style={styles.intro}>
-        <Text style={styles.introText}>
-          Añade ítems del catálogo. Si activas el filtro en Recetas, solo verás platos cuyos ingredientes estén todos
-          entre tus pendientes (la receta puede usar solo parte de la lista).
-        </Text>
-      </View>
+      <StitchSubScreenHeader onRightPress={() => navigation.navigate('FeedTab')} />
+      <View style={styles.flexGrow}>
+        <View style={styles.pageHeading}>
+          <Text style={styles.pageTitle}>Lista de la compra</Text>
+          <Text style={styles.pageSubtitle}>Organiza tus ingredientes para la semana.</Text>
+        </View>
 
       {!listSchemaMissing ? (
-        <View style={styles.filterSwitchRow}>
-          <View style={styles.filterSwitchText}>
-            <Text style={styles.filterSwitchTitle}>Filtrar recetas con esta lista</Text>
-            <Text style={styles.filterSwitchCaption}>
-              En Recetas, solo aparecen recetas que puedes hacer con esos pendientes (todo ingrediente de la receta
-              debe estar en la lista). Puedes combinarlo con «en casa».
-            </Text>
+        <View style={styles.filterCard}>
+          <View style={styles.filterCardTop}>
+            <Switch
+              value={useShoppingListForFeedFilter}
+              onValueChange={setUseShoppingListForFeedFilter}
+              trackColor={{ false: colors.border, true: colors.accentSoft }}
+              thumbColor={useShoppingListForFeedFilter ? colors.accent : colors.surface}
+              accessibilityLabel="Usar pendientes como filtro en el feed"
+            />
+            <Text style={styles.filterInlineLabel}>Usar pendientes como filtro en el feed</Text>
           </View>
-          <Switch
-            value={useShoppingListForFeedFilter}
-            onValueChange={setUseShoppingListForFeedFilter}
-            trackColor={{ false: colors.border, true: colors.accentSoft }}
-            thumbColor={useShoppingListForFeedFilter ? colors.accent : colors.surface}
-            accessibilityLabel="Usar lista de la compra para filtrar el feed de recetas"
-          />
+          <Pressable
+            onPress={() => void onShare()}
+            style={({ pressed }) => [styles.sharePill, pressed && { opacity: 0.9 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Compartir lista como texto"
+          >
+            <Ionicons name="share-outline" size={20} color={colors.onSecondary} />
+            <Text style={styles.sharePillText}>Compartir lista como texto</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -168,10 +153,11 @@ export function ShoppingListScreen() {
 
       <View style={[styles.addRow, listSchemaMissing && styles.addRowDisabled]}>
         <CatalogIngredientInput
+          variant="pill"
           onCommit={(name) => void onAdd(name)}
           disabled={listSchemaMissing}
           maxLength={LIMITS.shoppingItemMaxLength}
-          placeholder="Busca en el catálogo…"
+          placeholder="Añadir nuevo ingrediente…"
           accessibilityInputLabel="Nuevo ítem de lista"
           accessibilityAddLabel="Añadir a la lista"
         />
@@ -186,6 +172,14 @@ export function ShoppingListScreen() {
           data={items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={
+            items.length > 0 ? (
+              <View style={styles.listFooterMascot}>
+                <Nibbly state="pensativa" size={112} accessibilityLabel="Nibbly pensativo" />
+                <Text style={styles.footerHint}>¿Olvidaste algo importante?</Text>
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -203,10 +197,16 @@ export function ShoppingListScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
+              <Nibbly
+                state="dudosa"
+                size={120}
+                accessibilityLabel="Nibbly: lista vacía"
+                style={{ marginBottom: spacing.md }}
+              />
               <Text style={styles.muted}>
                 {listSchemaMissing
                   ? 'Cuando la base de datos esté lista, podrás guardar ítems aquí.'
-                  : 'Tu lista está vacía. Añade lo que tengas en mente comprar.'}
+                  : 'Tu lista está vacía. ¡Empieza añadiendo ingredientes!'}
               </Text>
             </View>
           }
@@ -245,30 +245,74 @@ function ShoppingRow({
       </Pressable>
       <Pressable
         onPress={onRemove}
-        style={styles.removeHit}
+        style={({ pressed }) => [styles.removeHit, pressed && { opacity: 0.7 }]}
         accessibilityRole="button"
         accessibilityLabel={`Quitar ${item.label}`}
         hitSlop={8}
       >
-        <Text style={styles.removeText}>Quitar</Text>
+        <Ionicons name="trash-outline" size={22} color={colors.danger} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRight: {
+  pageHeading: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    gap: 4,
+  },
+  pageTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 26,
+    letterSpacing: -0.45,
+    color: colors.textPrimary,
+  },
+  pageSubtitle: {
+    ...typography.body,
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  filterCard: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.xxl,
+    backgroundColor: 'rgba(233, 225, 220, 0.35)',
+    gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  filterCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  filterInlineLabel: {
+    flex: 1,
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 20,
+  },
+  sharePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.secondary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    ...elevation.cardSoft,
   },
-  headerLink: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  headerLinkText: {
-    ...typography.subtitle,
-    color: colors.accent,
+  sharePillText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    color: colors.onSecondary,
   },
   flex: {
     flex: 1,
@@ -276,39 +320,6 @@ const styles = StyleSheet.create({
   },
   flexGrow: {
     flex: 1,
-  },
-  intro: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-  },
-  introText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  filterSwitchRow: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surfaceCard,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-  },
-  filterSwitchText: {
-    flex: 1,
-    gap: 4,
-  },
-  filterSwitchTitle: {
-    ...typography.subtitle,
-    color: colors.textPrimary,
-  },
-  filterSwitchCaption: {
-    ...typography.caption,
-    color: colors.textSecondary,
   },
   schemaBanner: {
     marginHorizontal: spacing.lg,
@@ -344,8 +355,23 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxl * 2,
     gap: spacing.sm,
+  },
+  listFooterMascot: {
+    alignItems: 'center',
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.lg,
+    gap: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSoft,
+    marginTop: spacing.lg,
+  },
+  footerHint: {
+    ...typography.body,
+    fontStyle: 'italic',
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   centered: {
     flex: 1,
@@ -365,11 +391,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.surfaceCard,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: 'rgba(255, 140, 66, 0.08)',
+    ...elevation.cardSoft,
   },
   checkHit: {
     paddingVertical: spacing.xs,
@@ -407,10 +434,5 @@ const styles = StyleSheet.create({
   removeHit: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.xs,
-  },
-  removeText: {
-    ...typography.caption,
-    color: colors.danger,
-    fontWeight: '600',
   },
 });

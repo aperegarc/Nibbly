@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
   Keyboard,
@@ -24,6 +25,8 @@ type Props = {
   addLabel?: string;
   accessibilityInputLabel?: string;
   accessibilityAddLabel?: string;
+  /** Barra redondeada con icono (estilo Stitch lista de compra). */
+  variant?: 'default' | 'pill';
 };
 
 export function CatalogIngredientInput({
@@ -34,6 +37,7 @@ export function CatalogIngredientInput({
   addLabel = 'Añadir',
   accessibilityInputLabel = 'Buscar ingrediente del catálogo',
   accessibilityAddLabel = 'Añadir ingrediente',
+  variant = 'default',
 }: Props) {
   const [draft, setDraft] = useState('');
   const [hint, setHint] = useState<string | null>(null);
@@ -83,36 +87,57 @@ export function CatalogIngredientInput({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.inputRow}>
-        <TextInput
-          value={draft}
-          onChangeText={(t) => {
-            setDraft(t);
-            setHint(null);
-          }}
-          placeholder={placeholder}
-          placeholderTextColor={colors.textSecondary}
-          style={[styles.input, disabled && styles.inputDisabled]}
-          maxLength={maxLength}
-          onSubmitEditing={() => void tryCommit()}
-          returnKeyType="done"
-          accessibilityLabel={accessibilityInputLabel}
-          editable={!disabled}
-        />
-        <Pressable
-          onPress={() => void tryCommit()}
-          disabled={disabled}
-          style={({ pressed }) => [
-            styles.addButton,
-            disabled && styles.addButtonDisabled,
-            pressed && !disabled && styles.addButtonPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={accessibilityAddLabel}
-        >
-          <Text style={[styles.addLabel, disabled && styles.addLabelMuted]}>{addLabel}</Text>
-        </Pressable>
-      </View>
+      {variant === 'pill' ? (
+        <View style={[styles.pillShell, disabled && styles.inputDisabled]}>
+          <Ionicons name="add-circle-outline" size={22} color={colors.textMuted} style={styles.pillIcon} />
+          <TextInput
+            value={draft}
+            onChangeText={(t) => {
+              setDraft(t);
+              setHint(null);
+            }}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textMuted}
+            style={styles.pillInput}
+            maxLength={maxLength}
+            onSubmitEditing={() => void tryCommit()}
+            returnKeyType="done"
+            accessibilityLabel={accessibilityInputLabel}
+            editable={!disabled}
+          />
+        </View>
+      ) : (
+        <View style={styles.inputRow}>
+          <TextInput
+            value={draft}
+            onChangeText={(t) => {
+              setDraft(t);
+              setHint(null);
+            }}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textSecondary}
+            style={[styles.input, disabled && styles.inputDisabled]}
+            maxLength={maxLength}
+            onSubmitEditing={() => void tryCommit()}
+            returnKeyType="done"
+            accessibilityLabel={accessibilityInputLabel}
+            editable={!disabled}
+          />
+          <Pressable
+            onPress={() => void tryCommit()}
+            disabled={disabled}
+            style={({ pressed }) => [
+              styles.addButton,
+              disabled && styles.addButtonDisabled,
+              pressed && !disabled && styles.addButtonPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityAddLabel}
+          >
+            <Text style={[styles.addLabel, disabled && styles.addLabelMuted]}>{addLabel}</Text>
+          </Pressable>
+        </View>
+      )}
 
       {hint ? <Text style={styles.hintError}>{hint}</Text> : null}
 
@@ -150,6 +175,30 @@ export function CatalogIngredientInput({
 const styles = StyleSheet.create({
   wrap: {
     gap: spacing.sm,
+  },
+  pillShell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceCard,
+    borderRadius: radius.full,
+    minHeight: 52,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.lg,
+    shadowColor: 'rgba(155, 69, 0, 0.08)',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  pillIcon: {
+    marginRight: spacing.sm,
+  },
+  pillInput: {
+    ...typography.body,
+    flex: 1,
+    paddingVertical: 14,
+    color: colors.textPrimary,
+    borderWidth: 0,
   },
   inputRow: {
     flexDirection: 'row',

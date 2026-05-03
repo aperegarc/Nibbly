@@ -1,6 +1,9 @@
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,11 +34,14 @@ import {
   MEAL_ORDER,
 } from '../../domain/entities/WeeklyMenu';
 import { SupabaseRecipeRepository } from '../../infrastructure/repositories/SupabaseRecipeRepository';
-import { SignOutHeaderButton } from '../components/SignOutHeaderButton';
+import { StitchSubScreenHeader } from '../components/StitchSubScreenHeader';
 import { useFavoriteRecipes } from '../hooks/useFavoriteRecipes';
 import { useRecipeTitleSearch } from '../hooks/useRecipeTitleSearch';
+import type { MainTabParamList } from '../navigation/types';
 import type { WeeklyStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
+import { elevation } from '../theme/shadows';
+import { fontFamilies } from '../theme/fonts';
 import { radius } from '../theme/radius';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
@@ -70,6 +76,7 @@ function uniqueIngredientLabelsFromRecipes(recipes: Recipe[]): string[] {
 type Props = NativeStackScreenProps<WeeklyStackParamList, 'WeeklyHome'>;
 
 export function WeeklyMenuScreen({ navigation }: Props) {
+  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { profile } = useProfile();
@@ -114,25 +121,6 @@ export function WeeklyMenuScreen({ navigation }: Props) {
     searchEnabled,
     preferenceBundle,
   );
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerActions}>
-          <Pressable
-            onPress={() => void clearWeek()}
-            accessibilityRole="button"
-            accessibilityLabel="Vaciar semana"
-            hitSlop={8}
-            style={styles.headerClear}
-          >
-            <Text style={styles.headerClearText}>Limpiar</Text>
-          </Pressable>
-          <SignOutHeaderButton />
-        </View>
-      ),
-    });
-  }, [clearWeek, navigation]);
 
   const openPicker = (dayIndex: number, meal: MealType) => {
     setPickerTarget({ dayIndex, meal });
@@ -253,10 +241,12 @@ export function WeeklyMenuScreen({ navigation }: Props) {
 
   return (
     <View style={styles.flex}>
+      <StitchSubScreenHeader onRightPress={() => tabNavigation.navigate('FeedTab')} />
       <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
-        <Text style={styles.lead}>
-          Elige el día arriba. Toca una comida para asignar receta (favoritos o búsqueda).
-        </Text>
+        <View style={styles.pageHeading}>
+          <Text style={styles.pageTitle}>Menú semanal</Text>
+          <Text style={styles.pageSubtitle}>Organiza tus comidas de la semana con facilidad.</Text>
+        </View>
 
         <ScrollView
           horizontal
@@ -279,41 +269,11 @@ export function WeeklyMenuScreen({ navigation }: Props) {
                 accessibilityState={{ selected }}
                 accessibilityLabel={label}
               >
-                <Text style={[styles.dayChipDow, selected && styles.dayChipDowSelected]}>{DAY_SHORT[dayIndex]}</Text>
-                <Text style={[styles.dayChipNum, selected && styles.dayChipNumSelected]} numberOfLines={1}>
-                  {label}
-                </Text>
+                <Text style={[styles.dayChipMainLabel, selected && styles.dayChipMainLabelSelected]}>{label}</Text>
               </Pressable>
             );
           })}
         </ScrollView>
-
-        <Pressable
-          onPress={() => void handleBuildShoppingListFromMenu()}
-          disabled={shoppingFromMenuLoading || listSchemaMissing}
-          style={({ pressed }) => [
-            styles.shopFromWeekBtn,
-            (shoppingFromMenuLoading || listSchemaMissing) && styles.shopFromWeekBtnDisabled,
-            pressed && !shoppingFromMenuLoading && !listSchemaMissing && styles.shopFromWeekBtnPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Hacer lista de la compra según el menú semanal"
-        >
-          {shoppingFromMenuLoading ? (
-            <ActivityIndicator color={colors.accentForeground} />
-          ) : (
-            <Text style={styles.shopFromWeekBtnText}>Hacer lista según el menú</Text>
-          )}
-        </Pressable>
-        {listSchemaMissing ? (
-          <Text style={styles.shopFromWeekHint}>
-            La lista de la compra no está disponible hasta que exista la tabla en Supabase.
-          </Text>
-        ) : (
-          <Text style={styles.shopFromWeekHint}>
-            Junta los ingredientes de todas las recetas asignadas (sin duplicar lo que ya tienes en la lista).
-          </Text>
-        )}
 
         {(() => {
           const dayIndex = selectedDayIndex;
@@ -380,6 +340,48 @@ export function WeeklyMenuScreen({ navigation }: Props) {
             </View>
           );
         })()}
+
+        <View style={styles.globalActions}>
+          <Pressable
+            onPress={() => void handleBuildShoppingListFromMenu()}
+            disabled={shoppingFromMenuLoading || listSchemaMissing}
+            style={({ pressed }) => [
+              styles.actionPrimary,
+              elevation.primaryButton,
+              (shoppingFromMenuLoading || listSchemaMissing) && styles.actionDisabled,
+              pressed && !shoppingFromMenuLoading && !listSchemaMissing && { opacity: 0.92 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Añadir ingredientes del menú a la lista de la compra"
+          >
+            {shoppingFromMenuLoading ? (
+              <ActivityIndicator color={colors.accentForeground} />
+            ) : (
+              <>
+                <Ionicons name="cart-outline" size={22} color={colors.accentForeground} />
+                <Text style={styles.actionPrimaryText}>Añadir ingredientes a la lista</Text>
+              </>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => void clearWeek()}
+            style={({ pressed }) => [styles.actionGhost, pressed && { opacity: 0.88 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Limpiar toda la semana"
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.actionGhostText}>Limpiar toda la semana</Text>
+          </Pressable>
+          {listSchemaMissing ? (
+            <Text style={styles.shopFromWeekHint}>
+              La lista de la compra no está disponible hasta que exista la tabla en Supabase.
+            </Text>
+          ) : (
+            <Text style={styles.shopFromWeekHint}>
+              Junta los ingredientes de todas las recetas asignadas (sin duplicar lo que ya tienes en la lista).
+            </Text>
+          )}
+        </View>
 
         <Pressable onPress={() => void refresh()} style={styles.syncNote} accessibilityRole="button">
           <Text style={styles.syncNoteText}>Actualizar desde el servidor</Text>
@@ -519,77 +521,102 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollBody: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl * 2,
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  pageHeading: {
+    marginBottom: spacing.sm,
+    gap: 4,
+  },
+  pageTitle: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 26,
+    letterSpacing: -0.45,
+    color: colors.textPrimary,
+  },
+  pageSubtitle: {
+    ...typography.body,
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
   },
   dayChipsScroll: {
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.md,
   },
   dayChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    borderRadius: radius.full,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    marginRight: spacing.xs,
-    minWidth: 72,
+    borderColor: 'transparent',
+    backgroundColor: colors.surfaceContainerHigh,
+    marginRight: spacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   dayChipSelected: {
     borderColor: colors.accent,
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.accent,
   },
   dayChipTodayOutline: {
     borderColor: colors.accent,
   },
-  dayChipDow: {
-    ...typography.caption,
+  dayChipMainLabel: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
     color: colors.textMuted,
-    fontWeight: '700',
   },
-  dayChipDowSelected: {
-    color: colors.accent,
-  },
-  dayChipNum: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  dayChipNumSelected: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  lead: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: 0,
-  },
-  shopFromWeekBtn: {
-    backgroundColor: colors.accent,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  shopFromWeekBtnDisabled: {
-    opacity: 0.5,
-  },
-  shopFromWeekBtnPressed: {
-    opacity: 0.92,
-  },
-  shopFromWeekBtnText: {
-    ...typography.subtitle,
-    color: colors.accentForeground,
+  dayChipMainLabelSelected: {
+    color: '#ffffff',
   },
   shopFromWeekHint: {
     ...typography.caption,
     color: colors.textMuted,
-    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  globalActions: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.xl,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSoft,
+    gap: spacing.md,
+  },
+  actionPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accent,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+  },
+  actionPrimaryText: {
+    fontFamily: fontFamilies.bold,
+    fontSize: 15,
+    color: colors.accentForeground,
+  },
+  actionGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surface,
+  },
+  actionGhostText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  actionDisabled: {
+    opacity: 0.55,
   },
   centered: {
     flex: 1,
@@ -706,18 +733,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.danger,
     fontWeight: '600',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  headerClear: {
-    paddingVertical: spacing.xs,
-  },
-  headerClearText: {
-    ...typography.subtitle,
-    color: colors.accent,
   },
   syncNote: {
     alignSelf: 'center',
