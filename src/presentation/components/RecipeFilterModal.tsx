@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RecipeDifficulty } from '../../domain/entities/Recipe';
 import type { RecipeFilters } from '../../domain/repositories/RecipeRepository';
+import { COUNTRY_OPTIONS } from '../constants/countryOptions';
 import { DIET_OPTIONS } from '../constants/dietOptions';
 import { colors } from '../theme/colors';
 import { fontFamilies } from '../theme/fonts';
@@ -176,6 +177,23 @@ export function RecipeFilterModal({
                     difficulty: option.value as RecipeDifficulty,
                   }))
                 }
+              />
+            ))}
+          </View>
+
+          <Text style={styles.section}>País / cocina</Text>
+          <View style={styles.rowWrap}>
+            <FilterChip
+              label="Cualquiera"
+              selected={!draft.country}
+              onPress={() => setDraft((prev) => ({ ...prev, country: undefined }))}
+            />
+            {COUNTRY_OPTIONS.map((country) => (
+              <FilterChip
+                key={country}
+                label={country}
+                selected={draft.country === country}
+                onPress={() => setDraft((prev) => ({ ...prev, country }))}
               />
             ))}
           </View>

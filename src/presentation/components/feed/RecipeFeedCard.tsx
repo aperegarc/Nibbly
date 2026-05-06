@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { memo, useCallback, useMemo } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { memo, useCallback } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Recipe } from '../../../domain/entities/Recipe';
 import { dietBadgeLabel } from '../../constants/dietOptions';
@@ -19,7 +17,9 @@ type Props = {
   recipe: Recipe;
   height: number;
   isFavorite: boolean;
+  isDisliked: boolean;
   onToggleFavorite: (recipeId: string) => void;
+  onToggleDislike: (recipeId: string) => void;
   onOpenDetail?: (recipeId: string) => void;
   onAddMissingIngredientsToList?: (recipe: Recipe) => void;
   shoppingListDisabled?: boolean;
@@ -35,23 +35,22 @@ function RecipeFeedCardInner({
   recipe,
   height,
   isFavorite,
+  isDisliked,
   onToggleFavorite,
+  onToggleDislike,
   onOpenDetail,
   onAddMissingIngredientsToList,
   shoppingListDisabled,
 }: Props) {
-  const insets = useSafeAreaInsets();
-  const imageHeight = Math.round(height * 0.58);
-
-  const onOpenAttribution = useCallback(() => {
-    if (recipe.dataSourceUrl) {
-      void Linking.openURL(recipe.dataSourceUrl);
-    }
-  }, [recipe.dataSourceUrl]);
+  const imageHeight = Math.round(height * 0.66);
 
   const onFavoritePress = useCallback(() => {
     onToggleFavorite(recipe.id);
   }, [onToggleFavorite, recipe.id]);
+
+  const onDislikePress = useCallback(() => {
+    onToggleDislike(recipe.id);
+  }, [onToggleDislike, recipe.id]);
 
   const onCartPress = useCallback(() => {
     onAddMissingIngredientsToList?.(recipe);
@@ -61,32 +60,13 @@ function RecipeFeedCardInner({
     onOpenDetail?.(recipe.id);
   }, [onOpenDetail, recipe.id]);
 
-  const openDetailTap = useMemo(() => {
-    return Gesture.Tap()
-      .maxDistance(14)
-      .onEnd((_event, success) => {
-        if (success) {
-          onOpenDetail?.(recipe.id);
-        }
-      });
-  }, [onOpenDetail, recipe.id]);
-
   const dietShort = dietBadgeLabel(recipe.dietType).toUpperCase();
 
   return (
     <View style={[styles.root, { height }]} accessibilityRole="none">
       <View style={[styles.card, elevation.card]}>
-        <GestureDetector gesture={openDetailTap}>
-          <View
-            collapsable={false}
-            accessible={Boolean(onOpenDetail)}
-            accessibilityRole={onOpenDetail ? 'button' : 'none'}
-            accessibilityLabel={onOpenDetail ? `Ver receta completa: ${recipe.title}` : undefined}
-            accessibilityHint={
-              onOpenDetail ? 'No se activa al deslizar entre recetas; usa un toque breve' : undefined
-            }
-          >
-            <View style={[styles.imageShell, { height: imageHeight }]}>
+        <View>
+          <View style={[styles.imageShell, { height: imageHeight }]}>
               <Image
                 source={{ uri: recipe.imageUrl }}
                 style={styles.image}
@@ -127,6 +107,24 @@ function RecipeFeedCardInner({
                     color={isFavorite ? colors.favorite : colors.accent}
                   />
                 </Pressable>
+                <Pressable
+                  onPress={onDislikePress}
+                  style={({ pressed }) => [
+                    styles.iconButton,
+                    elevation.floating,
+                    pressed && styles.pressed,
+                    isDisliked && styles.iconButtonDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={isDisliked ? 'Quitar no me gusta' : 'No me gusta'}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={22}
+                    color={isDisliked ? colors.danger : colors.textMuted}
+                  />
+                </Pressable>
                 {onAddMissingIngredientsToList ? (
                   <Pressable
                     onPress={onCartPress}
@@ -145,101 +143,48 @@ function RecipeFeedCardInner({
                   </Pressable>
                 ) : null}
               </View>
-            </View>
-
-            <View style={styles.sheetHead}>
-              <Text style={styles.title}>{recipe.title}</Text>
-              <View style={styles.metaIcons}>
-                <View style={styles.metaItem}>
-                  <Ionicons name="time-outline" size={18} color={colors.textMuted} />
-                  <Text style={styles.metaText}>{recipe.cookTimeMinutes} min</Text>
-                </View>
-                <View style={styles.metaItem}>
-                  <Ionicons name="restaurant-outline" size={18} color={colors.textMuted} />
-                  <Text style={styles.metaText}>{DIFFICULTY_LABEL[recipe.difficulty]}</Text>
-                </View>
-              </View>
-
-              {onOpenDetail ? (
-                <Pressable
-                  onPress={onDetailPress}
-                  style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed, elevation.primaryButton]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ver receta completa"
-                >
-                  <Text style={styles.ctaPrimaryText}>Ver receta completa</Text>
-                </Pressable>
-              ) : null}
-
-              {onAddMissingIngredientsToList ? (
-                <Pressable
-                  onPress={onCartPress}
-                  disabled={shoppingListDisabled}
-                  style={({ pressed }) => [
-                    styles.ctaSecondary,
-                    pressed && !shoppingListDisabled && styles.pressed,
-                    shoppingListDisabled && styles.iconButtonDisabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Añadir faltantes a la lista"
-                >
-                  <Ionicons name="cart-outline" size={20} color={colors.secondary} />
-                  <Text style={styles.ctaSecondaryText}>Añadir faltantes a la lista</Text>
-                </Pressable>
-              ) : null}
-            </View>
           </View>
-        </GestureDetector>
 
-        <View style={styles.sheetScrollHost}>
-          <ScrollView
-            style={styles.body}
-            contentContainerStyle={[
-              styles.bodyContent,
-              { paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.lg) },
-            ]}
-            showsVerticalScrollIndicator={false}
-            nestedScrollEnabled
-          >
-            <Text style={styles.sectionHeading}>Ingredientes</Text>
-            {recipe.ingredients.length === 0 ? (
-              <Text style={styles.muted}>Sin ingredientes listados.</Text>
-            ) : (
-              recipe.ingredients.map((name, index) => (
-                <View key={`${recipe.id}-ing-${index}`} style={styles.ingredientRow}>
-                  <View style={styles.ingredientDot} />
-                  <Text style={styles.ingredientText}>{name}</Text>
-                </View>
-              ))
-            )}
+          <View style={styles.sheetHead}>
+            <Text style={styles.title} numberOfLines={2}>
+              {recipe.title}
+            </Text>
+            <View style={styles.metaIcons}>
+              <View style={styles.metaItem}>
+                <Ionicons name="time-outline" size={18} color={colors.textMuted} />
+                <Text style={styles.metaText}>{recipe.cookTimeMinutes} min</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Ionicons name="restaurant-outline" size={18} color={colors.textMuted} />
+                <Text style={styles.metaText}>{DIFFICULTY_LABEL[recipe.difficulty]}</Text>
+              </View>
+            </View>
 
-            <Text style={styles.sectionHeading}>Pasos rápidos</Text>
-            {recipe.quickSteps.length === 0 ? (
-              <Text style={styles.muted}>Sin pasos listados.</Text>
-            ) : (
-              recipe.quickSteps.map((step, index) => (
-                <View key={`${recipe.id}-step-${index}`} style={styles.stepRow}>
-                  <Text style={styles.stepIndex}>{String(index + 1).padStart(2, '0')}</Text>
-                  <Text style={styles.stepText}>{step}</Text>
-                </View>
-              ))
-            )}
-
-            {recipe.dataSourceName ? (
+            {onOpenDetail ? (
               <Pressable
-                onPress={recipe.dataSourceUrl ? onOpenAttribution : undefined}
-                disabled={!recipe.dataSourceUrl}
-                style={styles.attribution}
-                accessibilityRole={recipe.dataSourceUrl ? 'link' : 'text'}
-                accessibilityLabel={`Fuente de datos: ${recipe.dataSourceName}`}
+                onPress={onDetailPress}
+                style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed, elevation.primaryButton]}
+                accessibilityRole="button"
+                accessibilityLabel="Ver receta completa"
               >
-                <Text style={styles.attributionText}>
-                  Fuente: {recipe.dataSourceName}
-                  {recipe.dataSourceUrl ? ' · tocar para más' : ''}
-                </Text>
+                <Text style={styles.ctaPrimaryText}>Ver receta completa</Text>
               </Pressable>
             ) : null}
-          </ScrollView>
+
+            {onAddMissingIngredientsToList ? (
+              <Pressable
+                onPress={onCartPress}
+                disabled={shoppingListDisabled}
+                style={({ pressed }) => [
+                  pressed && !shoppingListDisabled && styles.pressed,
+                  shoppingListDisabled && styles.iconButtonDisabled,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Añadir faltantes a la lista"
+              >
+              </Pressable>
+            ) : null}
+          </View>
         </View>
       </View>
     </View>
@@ -250,13 +195,15 @@ export const RecipeFeedCard = memo(RecipeFeedCardInner);
 
 const styles = StyleSheet.create({
   root: {
+    height: '100%',
     width: '100%',
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    gap: 10,
+
   },
   card: {
-    flex: 1,
+    height: '95%',
     backgroundColor: colors.surface,
     borderRadius: radius.xxl,
     borderWidth: 1,
@@ -335,17 +282,18 @@ const styles = StyleSheet.create({
   },
   sheetHead: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
-    gap: spacing.md,
+    gap: spacing.sm,
     backgroundColor: colors.surface,
   },
   title: {
     fontFamily: fontFamilies.bold,
-    fontSize: 22,
+    fontSize: 20,
     letterSpacing: -0.35,
-    lineHeight: 28,
+    lineHeight: 24,
     color: colors.textPrimary,
+    minHeight: 48,
   },
   metaIcons: {
     flexDirection: 'row',
@@ -372,91 +320,5 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.bold,
     fontSize: 17,
     color: colors.accentForeground,
-  },
-  ctaSecondary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    borderRadius: radius.full,
-    borderWidth: 2,
-    borderColor: 'rgba(55, 104, 71, 0.25)',
-    backgroundColor: 'rgba(55, 104, 71, 0.06)',
-  },
-  ctaSecondaryText: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 15,
-    color: colors.secondary,
-  },
-  sheetScrollHost: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderBottomLeftRadius: radius.xxl,
-    borderBottomRightRadius: radius.xxl,
-    overflow: 'hidden',
-  },
-  body: {
-    flex: 1,
-  },
-  bodyContent: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  sectionHeading: {
-    ...typography.subtitle,
-    fontFamily: fontFamilies.bold,
-    color: colors.textPrimary,
-    marginTop: spacing.md,
-  },
-  muted: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  ingredientRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'flex-start',
-  },
-  ingredientDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginTop: 10,
-    backgroundColor: colors.accent,
-    opacity: 0.85,
-  },
-  ingredientText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'flex-start',
-  },
-  stepIndex: {
-    ...typography.caption,
-    fontFamily: fontFamilies.bold,
-    color: colors.textMuted,
-    width: 28,
-    marginTop: 2,
-  },
-  stepText: {
-    ...typography.body,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  attribution: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-  },
-  attributionText: {
-    ...typography.caption,
-    color: colors.textMuted,
   },
 });

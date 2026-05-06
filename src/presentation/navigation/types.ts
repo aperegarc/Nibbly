@@ -12,6 +12,7 @@ export type FeedStackParamList = {
 
 export type FavoritesStackParamList = {
   FavoritesHome: undefined;
+  CreateRecipe: undefined;
   RecipeDetail: { recipeId: string };
   CookingMode: { recipeId: string };
 };

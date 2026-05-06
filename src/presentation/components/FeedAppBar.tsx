@@ -1,31 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../app/providers/AuthProvider';
-import { Nibbly } from './nibbly/Nibbly';
-import type { NibblyState } from './nibbly/nibblyTypes';
 import { colors } from '../theme/colors';
 import { fontFamilies } from '../theme/fonts';
 import { spacing } from '../theme/spacing';
 
-const MASCOT_CYCLE: NibblyState[] = ['feliz', 'alegre', 'celebrando', 'pensativa', 'dudosa', 'cocinera'];
-
 type Props = {
-  onSearch: () => void;
   onOpenFilters: () => void;
   onOpenSurprise?: () => void;
 };
 
-export function FeedAppBar({ onSearch, onOpenFilters, onOpenSurprise }: Props) {
+export function FeedAppBar({ onOpenFilters, onOpenSurprise }: Props) {
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
-  const [mascotIdx, setMascotIdx] = useState(0);
-
-  const advanceMascot = useCallback(() => {
-    setMascotIdx((i) => (i + 1) % MASCOT_CYCLE.length);
-  }, []);
 
   const openMoreMenu = useCallback(() => {
     const signOutAction = () => {
@@ -48,34 +38,17 @@ export function FeedAppBar({ onSearch, onOpenFilters, onOpenSurprise }: Props) {
     <View style={[styles.wrap, { paddingTop: insets.top }]}>
       <View style={styles.inner}>
         <View style={styles.brandBlock}>
-          <Pressable
-            onPress={advanceMascot}
-            style={styles.mascotRing}
-            accessibilityRole="button"
-            accessibilityLabel="Nibbly, toca para cambiar de humor"
-          >
-            <Nibbly state={MASCOT_CYCLE[mascotIdx]} size={40} />
-          </Pressable>
           <View style={styles.brandText}>
             <Text style={styles.brandName} numberOfLines={1}>
               Nibbly
             </Text>
             <Text style={styles.brandHint} numberOfLines={1}>
-              Toca la mascota para cambiar estado
+              Recetas para ti
             </Text>
           </View>
         </View>
 
         <View style={styles.actions}>
-          <Pressable
-            onPress={onSearch}
-            style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Buscar recetas por título"
-            hitSlop={8}
-          >
-            <Ionicons name="search-outline" size={22} color={colors.textMuted} />
-          </Pressable>
           <Pressable
             onPress={onOpenFilters}
             style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
@@ -90,7 +63,7 @@ export function FeedAppBar({ onSearch, onOpenFilters, onOpenSurprise }: Props) {
               onPress={onOpenSurprise}
               style={({ pressed }) => [styles.surpriseBtn, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel="Sorpréndeme: tiempo, nevera y lista"
+              accessibilityLabel="Sorpréndeme: salta a una receta al azar del feed"
             >
               <Ionicons name="dice-outline" size={18} color="#ffffff" />
               <Text style={styles.surpriseText}>Sorpréndeme</Text>
@@ -138,17 +111,6 @@ const styles = StyleSheet.create({
     gap: 12,
     flex: 1,
     minWidth: 0,
-  },
-  mascotRing: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.mascotBorder,
-    backgroundColor: colors.mascotBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
   },
   brandText: {
     flex: 1,

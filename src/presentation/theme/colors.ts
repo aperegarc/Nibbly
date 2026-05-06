@@ -14,8 +14,6 @@ export const colors = {
   /** Cabecera tipo Stitch (stone-50) */
   headerBar: '#fafaf9',
   headerBarBorder: 'rgba(214, 211, 209, 0.65)',
-  mascotBg: '#ffedd5',
-  mascotBorder: '#fed7aa',
   /** Sorpréndeme — orange-600 Tailwind */
   surpriseOrange: '#ea580c',
   /** Tab activo — orange-100 / orange-700 */

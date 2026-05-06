@@ -1,8 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -14,11 +15,11 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { useDiscoveryPreferences } from '../../app/providers/DiscoveryPreferencesProvider';
 import { useProfile } from '../../app/providers/ProfileProvider';
 import { useShoppingList } from '../../app/providers/ShoppingListProvider';
+import { SupabaseRecipeRepository } from '../../infrastructure/repositories/SupabaseRecipeRepository';
 import {
   recipeIngredientsCoveredByShoppingLabels,
   recipeMatchesFilters,
 } from '../../shared/utils/recipeFilterMatch';
-import { Nibbly, nibblySemantics } from '../components/nibbly';
 import { RecipeFilterModal } from '../components/RecipeFilterModal';
 import { SignOutHeaderButton } from '../components/SignOutHeaderButton';
 import { useFavoriteRecipes } from '../hooks/useFavoriteRecipes';
@@ -42,6 +43,7 @@ export function FavoritesScreen({ navigation }: Props) {
   } = useShoppingList();
   const userId = session?.user.id;
   const [filterOpen, setFilterOpen] = useState(false);
+  const repository = useMemo(() => new SupabaseRecipeRepository(), []);
 
   const preferences = useMemo(() => {
     if (!profile) {
@@ -55,6 +57,32 @@ export function FavoritesScreen({ navigation }: Props) {
   }, [profile]);
 
   const { recipes, loading, error, refresh } = useFavoriteRecipes(userId, preferences);
+
+  const handleRemoveFavorite = useCallback(
+    (recipeId: string, title: string) => {
+      if (!userId) {
+        return;
+      }
+      Alert.alert('Quitar de favoritos', `¿Eliminar "${title}" de tus favoritos?`, [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await repository.removeFavorite(userId, recipeId);
+                await refresh();
+              } catch {
+                Alert.alert('Error', 'No se pudo quitar la receta de favoritos.');
+              }
+            })();
+          },
+        },
+      ]);
+    },
+    [refresh, repository, userId],
+  );
 
   const filteredRecipes = useMemo(() => {
     return recipes.filter((r) => {
@@ -76,6 +104,15 @@ export function FavoritesScreen({ navigation }: Props) {
       title: 'Favoritos',
       headerRight: () => (
         <View style={styles.headerRight}>
+          <Pressable
+            onPress={() => navigation.navigate('CreateRecipe')}
+            style={styles.headerBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Crear receta"
+            hitSlop={8}
+          >
+            <Text style={styles.headerBtnText}>Crear</Text>
+          </Pressable>
           <Pressable
             onPress={() => setFilterOpen(true)}
             style={styles.headerBtn}
@@ -142,23 +179,11 @@ export function FavoritesScreen({ navigation }: Props) {
           <View style={styles.empty}>
             {recipes.length === 0 ? (
               <>
-                <Nibbly
-                  state={nibblySemantics.cheerful}
-                  size={88}
-                  style={{ marginBottom: spacing.md }}
-                  accessibilityLabel="Nibbly te invita a guardar favoritos"
-                />
                 <Text style={styles.emptyTitle}>Sin favoritos aún</Text>
                 <Text style={styles.muted}>Guarda recetas desde Explorar con el corazón.</Text>
               </>
             ) : (
               <>
-                <Nibbly
-                  state={nibblySemantics.noResults}
-                  size={88}
-                  style={{ marginBottom: spacing.md }}
-                  accessibilityLabel="Nibbly no encuentra favoritos con estos filtros"
-                />
                 <Text style={styles.emptyTitle}>Nada que coincida</Text>
                 <Text style={styles.muted}>
                   {useShoppingListForFeedFilter && uncheckedLabels.length === 0
@@ -182,6 +207,14 @@ export function FavoritesScreen({ navigation }: Props) {
                 {item.title}
               </Text>
               <Text style={styles.rowMeta}>{item.cookTimeMinutes} min</Text>
+              <Pressable
+                onPress={() => handleRemoveFavorite(item.id, item.title)}
+                accessibilityRole="button"
+                accessibilityLabel={`Eliminar ${item.title} de favoritos`}
+                hitSlop={8}
+              >
+                <Text style={styles.removeText}>Eliminar de favoritos</Text>
+              </Pressable>
             </View>
           </Pressable>
         )}
@@ -286,5 +319,9 @@ const styles = StyleSheet.create({
   rowMeta: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  removeText: {
+    ...typography.caption,
+    color: colors.danger,
   },
 });

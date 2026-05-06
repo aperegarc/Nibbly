@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Pressable,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useProfile } from '../../app/providers/ProfileProvider';
+import { trackRecipeEvent } from '../../infrastructure/analytics/recipeEvents';
 import { getCookingSteps } from '../../shared/utils/recipeCookingSteps';
 import type {
   FavoritesStackParamList,
@@ -55,6 +58,7 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
   const [ingredientChecked, setIngredientChecked] = useState<Record<number, boolean>>({});
   const { session } = useAuth();
   const { profile } = useProfile();
+  const viewedTracked = useRef(false);
 
   const preferences = useMemo(() => {
     if (!profile) {
@@ -68,6 +72,18 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
   }, [profile]);
 
   const { recipe, loading, error } = useRecipeDetail(recipeId, preferences);
+
+  useEffect(() => {
+    if (!session?.user.id || !recipe?.id || viewedTracked.current) {
+      return;
+    }
+    viewedTracked.current = true;
+    void trackRecipeEvent({
+      userId: session.user.id,
+      recipeId: recipe.id,
+      eventType: 'viewed',
+    });
+  }, [recipe?.id, session?.user.id]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -124,8 +140,71 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
       void Linking.openURL(recipe.dataSourceUrl);
     }
   };
+  const onShareRecipeText = async () => {
+    const ingredientsText =
+      recipe.ingredients.length > 0
+        ? recipe.ingredients.map((name, index) => `${index + 1}. ${name}`).join('\n')
+        : 'Sin ingredientes listados.';
+
+    const stepsSource = recipe.quickSteps.map((step, index) => `${index + 1}. ${step}`).join('\n');
+    const stepsText = stepsSource.trim() || 'Sin pasos listados.';
+    const recipeText = [
+      `*${recipe.title}*`,
+      '',
+      `Tiempo: ${recipe.cookTimeMinutes} min`,
+      `Dificultad: ${DIFFICULTY_LABEL[recipe.difficulty]}`,
+      `Dieta: ${dietBadgeLabel(recipe.dietType)}`,
+      '',
+      '*Ingredientes:*',
+      ingredientsText,
+      '',
+      '*Preparación:*',
+      stepsText,
+    ].join('\n');
+
+    const waUrl = `whatsapp://send?text=${encodeURIComponent(recipeText)}`;
+    try {
+      const canOpenWhatsapp = await Linking.canOpenURL(waUrl);
+      if (canOpenWhatsapp) {
+        await Linking.openURL(waUrl);
+        return;
+      }
+      await Share.share({ message: recipeText });
+    } catch {
+      await Share.share({ message: recipeText });
+    }
+  };
 
   const canCookMode = getCookingSteps(recipe).length > 0;
+  const onCookedFeedback = () => {
+    const userId = session?.user.id;
+    if (!userId) return;
+    Alert.alert('¿Cómo te fue cocinando?', 'Esto mejora tus recomendaciones.', [
+      {
+        text: '👍 Fácil',
+        onPress: () => {
+          void trackRecipeEvent({ userId, recipeId: recipe.id, eventType: 'cooked' });
+          void trackRecipeEvent({ userId, recipeId: recipe.id, eventType: 'cooked_easy' });
+        },
+      },
+      {
+        text: '⏱ Tardó más',
+        onPress: () => {
+          void trackRecipeEvent({ userId, recipeId: recipe.id, eventType: 'cooked' });
+          void trackRecipeEvent({ userId, recipeId: recipe.id, eventType: 'took_longer' });
+        },
+      },
+      {
+        text: '👎 Complicada',
+        style: 'destructive',
+        onPress: () => {
+          void trackRecipeEvent({ userId, recipeId: recipe.id, eventType: 'cooked' });
+          void trackRecipeEvent({ userId, recipeId: recipe.id, eventType: 'cooked_hard' });
+        },
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
 
   const toggleIngredient = (index: number) => {
     setIngredientChecked((prev) => ({ ...prev, [index]: !prev[index] }));
@@ -188,6 +267,25 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
             </View>
           </View>
 
+          <Pressable
+            onPress={() => void onShareRecipeText()}
+            style={({ pressed }) => [styles.shareBtn, pressed && styles.shareBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Exportar receta completa en texto para WhatsApp"
+          >
+            <Ionicons name="logo-whatsapp" size={18} color={colors.accentForeground} />
+            <Text style={styles.shareBtnText}>Compartir receta por WhatsApp</Text>
+          </Pressable>
+          <Pressable
+            onPress={onCookedFeedback}
+            style={({ pressed }) => [styles.cookedBtn, pressed && styles.cookedBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Marcar que cocinaste esta receta"
+          >
+            <Ionicons name="checkmark-done-outline" size={18} color={colors.textPrimary} />
+            <Text style={styles.cookedBtnText}>Cociné esto</Text>
+          </Pressable>
+
           <View style={styles.ingredientHeaderRow}>
             <Text style={styles.sectionHeading}>Ingredientes</Text>
             <Text style={styles.ingredientCount}>
@@ -231,13 +329,10 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
         )}
 
         <Text style={styles.sectionHeading}>Instrucciones</Text>
-        {recipe.fullInstructions?.trim() ? (
-          <Text style={styles.bodyText}>{recipe.fullInstructions.trim()}</Text>
+        {recipe.quickSteps.length > 0 ? (
+          <Text style={styles.bodyText}>{recipe.quickSteps.join('\n')}</Text>
         ) : (
-          <Text style={styles.muted}>
-            Aún no hay instrucciones completas en español para esta receta. Puedes reimportar con el script de
-            TheMealDB (traducción activada).
-          </Text>
+          <Text style={styles.muted}>Aún no hay instrucciones disponibles para esta receta.</Text>
         )}
 
         {recipe.dataSourceName ? (
@@ -259,9 +354,16 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
       {canCookMode ? (
         <View style={[styles.cookDock, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
           <Pressable
-            onPress={() =>
-              navigateToCookingMode(navigation as NativeStackNavigationProp<FeedStackParamList>, recipe.id)
-            }
+            onPress={() => {
+              if (session?.user.id) {
+                void trackRecipeEvent({
+                  userId: session.user.id,
+                  recipeId: recipe.id,
+                  eventType: 'started_cooking',
+                });
+              }
+              navigateToCookingMode(navigation as NativeStackNavigationProp<FeedStackParamList>, recipe.id);
+            }}
             style={({ pressed }) => [styles.cookDockBtn, elevation.primaryButton, pressed && styles.pressedDock]}
             accessibilityRole="button"
             accessibilityLabel="Abrir modo cocinar paso a paso con temporizador"
@@ -509,6 +611,44 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.bold,
     fontSize: 17,
     color: colors.onPrimaryContainer,
+  },
+  shareBtn: {
+    marginTop: spacing.xs,
+    borderRadius: radius.lg,
+    backgroundColor: colors.accent,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  shareBtnPressed: {
+    opacity: 0.92,
+  },
+  shareBtnText: {
+    ...typography.subtitle,
+    color: colors.accentForeground,
+  },
+  cookedBtn: {
+    marginTop: spacing.xs,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceContainer,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  cookedBtnPressed: {
+    opacity: 0.92,
+  },
+  cookedBtnText: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
   },
   pressedDock: {
     opacity: 0.92,

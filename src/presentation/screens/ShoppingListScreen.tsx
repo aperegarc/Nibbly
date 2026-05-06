@@ -21,7 +21,6 @@ import { useShoppingList } from '../../app/providers/ShoppingListProvider';
 import type { ShoppingListItem } from '../../domain/entities/ShoppingListItem';
 import { LIMITS } from '../../shared/utils/limits';
 import { CatalogIngredientInput } from '../components/CatalogIngredientInput';
-import { Nibbly } from '../components/nibbly';
 import { StitchSubScreenHeader } from '../components/StitchSubScreenHeader';
 import type { MainTabParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
@@ -174,8 +173,7 @@ export function ShoppingListScreen() {
           contentContainerStyle={styles.listContent}
           ListFooterComponent={
             items.length > 0 ? (
-              <View style={styles.listFooterMascot}>
-                <Nibbly state="pensativa" size={112} accessibilityLabel="Nibbly pensativo" />
+              <View style={styles.listFooterHint}>
                 <Text style={styles.footerHint}>¿Olvidaste algo importante?</Text>
               </View>
             ) : null
@@ -197,12 +195,6 @@ export function ShoppingListScreen() {
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Nibbly
-                state="dudosa"
-                size={120}
-                accessibilityLabel="Nibbly: lista vacía"
-                style={{ marginBottom: spacing.md }}
-              />
               <Text style={styles.muted}>
                 {listSchemaMissing
                   ? 'Cuando la base de datos esté lista, podrás guardar ítems aquí.'
@@ -358,7 +350,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl * 2,
     gap: spacing.sm,
   },
-  listFooterMascot: {
+  listFooterHint: {
     alignItems: 'center',
     paddingTop: spacing.xxl,
     paddingBottom: spacing.lg,

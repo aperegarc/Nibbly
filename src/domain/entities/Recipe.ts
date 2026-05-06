@@ -15,11 +15,10 @@ export type Recipe = {
   /** Nombres de ingredientes para mostrar en tarjeta (orden de la receta). */
   ingredients: string[];
   quickSteps: string[];
-  /** Instrucciones completas (p. ej. texto largo en español). */
-  fullInstructions: string | null;
   cookTimeMinutes: number;
   difficulty: RecipeDifficulty;
   dietType: DietType;
+  cuisineCountry: string | null;
   /** Atribución legal del contenido (proveedor de datos). */
   dataSourceName: string | null;
   dataSourceUrl: string | null;

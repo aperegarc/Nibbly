@@ -5,6 +5,7 @@ export type RecipeFilters = {
   diet?: DietType;
   maxCookTimeMinutes?: number;
   difficulty?: RecipeDifficulty;
+  country?: string;
 };
 
 export type RecipeFeedQuery = {
@@ -13,9 +14,6 @@ export type RecipeFeedQuery = {
   filters?: RecipeFilters;
   page: number;
   pageSize: number;
-  /** Nevera: nombres en catálogo; si matchPantryIngredients, recetas con al menos uno de estos. */
-  pantryIngredientNames: string[];
-  matchPantryIngredients: boolean;
   /**
    * Lista pendiente: si shoppingListFilterActive, solo recetas cuyos ingredientes ⊆ lista resuelta
    * (todos los de la receta deben estar en la lista; la receta no tiene que usar toda la lista).

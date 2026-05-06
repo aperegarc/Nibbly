@@ -8,7 +8,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "recipes:import": "node scripts/import-themealdb.mjs"
+    "recipes:import": "node scripts/import-themealdb.mjs",
+    "recipes:import:es": "node scripts/import-themealdb.mjs --all-letters --per-letter=10 --max-total=300",
+    "recipes:import:api:many": "node scripts/import-themealdb.mjs --all-letters --per-letter=50 --max-total=800 --no-translate",
+    "recipes:import:api:many:es": "node scripts/import-themealdb.mjs --all-letters --per-letter=50 --max-total=800"
   },
   "dependencies": {
     "@expo-google-fonts/be-vietnam-pro": "^0.4.1",
@@ -23,6 +26,7 @@
     "expo": "~54.0.33",
     "expo-font": "~14.0.11",
     "expo-image": "~3.0.11",
+    "expo-image-picker": "~17.0.11",
     "expo-keep-awake": "~15.0.8",
     "expo-linear-gradient": "~15.0.8",
     "expo-splash-screen": "~31.0.13",

@@ -21,13 +21,14 @@ import { useDiscoveryPreferences } from '../../app/providers/DiscoveryPreference
 import { useProfile } from '../../app/providers/ProfileProvider';
 import { useShoppingList } from '../../app/providers/ShoppingListProvider';
 import type { Recipe } from '../../domain/entities/Recipe';
+import { getSupabaseClient } from '../../infrastructure/supabase/client';
 import { FeedAppBar } from '../components/FeedAppBar';
 import { RecipeFeedCard } from '../components/feed/RecipeFeedCard';
-import { Nibbly, nibblySemantics } from '../components/nibbly';
+import { WhatToEatFeedCard } from '../components/feed/WhatToEatFeedCard';
 import { FeedToolbar } from '../components/FeedToolbar';
-import { QuickDecideModal, type QuickDecideResult } from '../components/QuickDecideModal';
 import { RecipeFilterModal } from '../components/RecipeFilterModal';
 import { useFavorites } from '../hooks/useFavorites';
+import { useRecipeDislikes } from '../hooks/useRecipeDislikes';
 import { useRecipeFeed } from '../hooks/useRecipeFeed';
 import type { FeedStackParamList } from '../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,6 +36,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+
+type FeedItem = {
+  recipe: Recipe;
+  isFavorite: boolean;
+  isDisliked: boolean;
+};
+
+type FeedListItem =
+  | { kind: 'today'; id: string; pick: Recipe }
+  | { kind: 'recipe'; recipe: Recipe; isFavorite: boolean; isDisliked: boolean };
 
 export function RecipeFeedScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<FeedStackParamList, 'FeedHome'>>();
@@ -58,10 +69,8 @@ export function RecipeFeedScreen() {
   );
 
   const [filterOpen, setFilterOpen] = useState(false);
-  const [quickDecideOpen, setQuickDecideOpen] = useState(false);
-  const [surpriseRequestId, setSurpriseRequestId] = useState(0);
-  const listRef = useRef<FlatList<Recipe>>(null);
-  const pendingSurpriseScroll = useRef(false);
+  const listRef = useRef<FlatList<FeedListItem>>(null);
+  const [missedRecipeIds, setMissedRecipeIds] = useState<string[]>([]);
 
   const preferences = useMemo(() => {
     if (!profile) {
@@ -74,8 +83,6 @@ export function RecipeFeedScreen() {
     };
   }, [profile]);
 
-  const pantryIngredientNames = useMemo(() => discovery.ingredientTags, [discovery.ingredientTags]);
-
   const shoppingListIngredientNames = useMemo(
     () => (useShoppingListForFeedFilter ? uncheckedLabels : []),
     [uncheckedLabels, useShoppingListForFeedFilter],
@@ -85,14 +92,42 @@ export function RecipeFeedScreen() {
     userId,
     preferences,
     filters: discovery.filters,
-    pantryIngredientNames,
-    matchPantryIngredients: discovery.matchPantryIngredients,
     shoppingListIngredientNames,
     shoppingListFilterActive: useShoppingListForFeedFilter,
   });
 
   const { isFavorite, toggleFavorite, favoriteIds } = useFavorites(userId);
   const favoriteSignature = useMemo(() => [...favoriteIds].sort().join('|'), [favoriteIds]);
+
+  const { dislikedIds, dislikedSignature, isDisliked, toggleDislike } = useRecipeDislikes(userId);
+
+  const visibleRecipes = useMemo(() => recipes.filter((r) => !dislikedIds.has(r.id)), [dislikedIds, recipes]);
+  const feedItems = useMemo<FeedItem[]>(
+    () =>
+      visibleRecipes.map((recipe) => ({
+        recipe,
+        isFavorite: favoriteIds.has(recipe.id),
+        isDisliked: dislikedIds.has(recipe.id),
+      })),
+    [dislikedIds, favoriteIds, visibleRecipes],
+  );
+
+  const topRecommendations = useMemo(() => feedItems.slice(0, 3), [feedItems]);
+
+  const listItems = useMemo<FeedListItem[]>(() => {
+    const recipeRows: FeedListItem[] = visibleRecipes.map((recipe) => ({
+      kind: 'recipe',
+      recipe,
+      isFavorite: favoriteIds.has(recipe.id),
+      isDisliked: dislikedIds.has(recipe.id),
+    }));
+    if (topRecommendations.length === 0) {
+      return recipeRows;
+    }
+    const pick = topRecommendations[0]!.recipe;
+    return [{ kind: 'today', id: '__what_to_eat_today__', pick }, ...recipeRows];
+  }, [dislikedIds, favoriteIds, topRecommendations, visibleRecipes]);
+
   const shoppingSignature = useMemo(
     () =>
       [...shoppingItems.map((i) => i.label.trim().toLowerCase())]
@@ -164,76 +199,122 @@ export function RecipeFeedScreen() {
     [navigation],
   );
 
+  const handleWhatToEatToday = useCallback(() => {
+    if (topRecommendations.length === 0) {
+      Alert.alert('Sin recetas', 'Ahora mismo no hay recomendaciones disponibles.');
+      return;
+    }
+    const options = topRecommendations.map((item, index) => ({
+      text: `${index + 1}. ${item.recipe.title} (${item.recipe.cookTimeMinutes} min)`,
+      onPress: () => handleOpenDetail(item.recipe.id),
+    }));
+    Alert.alert('¿Qué como hoy?', 'Elige una opción recomendada para hoy:', [
+      ...options,
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, [handleOpenDetail, topRecommendations]);
+
   const renderItem = useCallback(
-    ({ item }: { item: Recipe }) => (
-      <RecipeFeedCard
-        recipe={item}
-        height={listViewportHeight}
-        isFavorite={isFavorite(item.id)}
-        onToggleFavorite={handleToggleFavorite}
-        onOpenDetail={handleOpenDetail}
-        onAddMissingIngredientsToList={addRecipeIngredientsToList}
-        shoppingListDisabled={listSchemaMissing}
-      />
-    ),
+    ({ item }: { item: FeedListItem }) => {
+      if (item.kind === 'today') {
+        return (
+          <WhatToEatFeedCard
+            height={listViewportHeight}
+            featuredRecipe={item.pick}
+            onOpenOptions={handleWhatToEatToday}
+            onOpenFeatured={() => handleOpenDetail(item.pick.id)}
+          />
+        );
+      }
+      return (
+        <RecipeFeedCard
+          recipe={item.recipe}
+          height={listViewportHeight}
+          isFavorite={item.isFavorite}
+          isDisliked={item.isDisliked}
+          onToggleFavorite={handleToggleFavorite}
+          onToggleDislike={toggleDislike}
+          onOpenDetail={handleOpenDetail}
+          onAddMissingIngredientsToList={addRecipeIngredientsToList}
+          shoppingListDisabled={listSchemaMissing}
+        />
+      );
+    },
     [
       addRecipeIngredientsToList,
       handleOpenDetail,
       handleToggleFavorite,
-      isFavorite,
+      handleWhatToEatToday,
       listSchemaMissing,
       listViewportHeight,
+      toggleDislike,
     ],
   );
 
   const feedRefreshing = status === 'loading' && recipes.length > 0;
 
-  const keyExtractor = useCallback((item: Recipe) => item.id, []);
+  const keyExtractor = useCallback((item: FeedListItem) => (item.kind === 'today' ? item.id : item.recipe.id), []);
 
   const onEndReached = useCallback(() => {
     loadMore();
   }, [loadMore]);
 
-  const handleQuickDecideComplete = useCallback(
-    (opts: QuickDecideResult, surprise: boolean) => {
-      discovery.setMatchPantryIngredients(opts.pantryOnly);
-      discovery.setFilters({ ...discovery.filters, maxCookTimeMinutes: opts.maxCookTimeMinutes });
-      if (opts.useShoppingListForFeed) {
-        if (uncheckedLabels.length === 0) {
-          Alert.alert('Lista vacía', 'Añade pendientes en la pestaña Lista para filtrar por lista.');
-          setUseShoppingListForFeedFilter(false);
-        } else {
-          setUseShoppingListForFeedFilter(true);
-        }
-      } else {
-        setUseShoppingListForFeedFilter(false);
-      }
-      if (surprise) {
-        pendingSurpriseScroll.current = true;
-        setSurpriseRequestId((n) => n + 1);
-      }
-    },
-    [discovery, setUseShoppingListForFeedFilter, uncheckedLabels.length],
-  );
+  const handleOpenSurpriseInFeed = useCallback(() => {
+    if (feedItems.length === 0) {
+      Alert.alert('Sin recetas', 'No hay recetas visibles para sorprenderte ahora.');
+      return;
+    }
+    const idx = Math.floor(Math.random() * feedItems.length);
+    const listIndex = topRecommendations.length > 0 ? idx + 1 : idx;
+    listRef.current?.scrollToIndex({ index: listIndex, animated: true });
+  }, [feedItems.length, topRecommendations.length]);
 
   useEffect(() => {
-    if (!pendingSurpriseScroll.current) {
+    if (!userId || feedItems.length === 0) {
+      setMissedRecipeIds([]);
       return;
     }
-    if (status !== 'idle') {
-      return;
-    }
-    if (recipes.length === 0) {
-      pendingSurpriseScroll.current = false;
-      return;
-    }
-    pendingSurpriseScroll.current = false;
-    const idx = Math.floor(Math.random() * recipes.length);
-    const id = requestAnimationFrame(() => {
-      listRef.current?.scrollToIndex({ index: idx, animated: true });
-    });
-    return () => cancelAnimationFrame(id);
-  }, [status, recipes, surpriseRequestId]);
+    let cancelled = false;
+    const loadMissed = async () => {
+      const supabase = getSupabaseClient();
+      const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString();
+      const { data, error } = await supabase
+        .from('recipe_events')
+        .select('recipe_id,event_type,created_at')
+        .eq('user_id', userId)
+        .in('event_type', ['viewed', 'cooked'])
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+
+      if (error || !data || cancelled) {
+        return;
+      }
+
+      const cooked = new Set<string>();
+      const viewedOrdered: string[] = [];
+      const seenViewed = new Set<string>();
+      for (const row of data) {
+        if (!row.recipe_id) continue;
+        if (row.event_type === 'cooked') {
+          cooked.add(row.recipe_id);
+          continue;
+        }
+        if (row.event_type === 'viewed' && !seenViewed.has(row.recipe_id)) {
+          seenViewed.add(row.recipe_id);
+          viewedOrdered.push(row.recipe_id);
+        }
+      }
+
+      const visibleSet = new Set(feedItems.map((item) => item.recipe.id));
+      const missed = viewedOrdered.filter((id) => !cooked.has(id) && visibleSet.has(id)).slice(0, 10);
+      setMissedRecipeIds(missed);
+    };
+    void loadMissed();
+    return () => {
+      cancelled = true;
+    };
+  }, [feedItems, userId]);
 
   if (!userId) {
     return (
@@ -281,27 +362,13 @@ export function RecipeFeedScreen() {
         listSchemaMissing={listSchemaMissing}
       />
 
-      <QuickDecideModal
-        visible={quickDecideOpen}
-        onClose={() => setQuickDecideOpen(false)}
-        pantryTagCount={discovery.ingredientTags.length}
-        matchPantryIngredients={discovery.matchPantryIngredients}
-        shoppingListFilterActive={useShoppingListForFeedFilter}
-        shoppingPendingCount={uncheckedLabels.length}
-        maxCookTimeMinutes={discovery.filters.maxCookTimeMinutes}
-        onComplete={handleQuickDecideComplete}
-      />
-
       <FeedAppBar
-        onSearch={() => navigation.navigate('RecipeSearch')}
         onOpenFilters={() => setFilterOpen(true)}
-        onOpenSurprise={() => setQuickDecideOpen(true)}
+        onOpenSurprise={() => {
+          handleOpenSurpriseInFeed();
+        }}
       />
-      <FeedToolbar
-        ingredientTags={discovery.ingredientTags}
-        onAddIngredient={discovery.addIngredientTag}
-        onRemoveIngredient={discovery.removeIngredientTag}
-      />
+      <FeedToolbar onSearch={() => navigation.navigate('RecipeSearch')} />
 
       {status === 'error' && errorMessage ? (
         <View style={styles.banner}>
@@ -319,14 +386,14 @@ export function RecipeFeedScreen() {
           ref={listRef}
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          data={recipes}
+          data={listItems}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           onScrollToIndexFailed={({ index, averageItemLength }) => {
             const offset = averageItemLength * index;
             listRef.current?.scrollToOffset({ offset, animated: true });
           }}
-          extraData={`${favoriteSignature}|${shoppingSignature}|${listSchemaMissing ? '1' : '0'}`}
+          extraData={`${shoppingSignature}|${listSchemaMissing ? '1' : '0'}|${favoriteSignature}|${dislikedSignature}|${topRecommendations.length > 0 ? 'today' : 'notoday'}`}
           refreshControl={
             <RefreshControl
               refreshing={feedRefreshing}
@@ -348,21 +415,18 @@ export function RecipeFeedScreen() {
             offset: listViewportHeight * index,
             index,
           })}
-        initialNumToRender={2}
-        maxToRenderPerBatch={2}
-        windowSize={3}
-        removeClippedSubviews
+        initialNumToRender={1}
+        maxToRenderPerBatch={1}
+        windowSize={2}
+        updateCellsBatchingPeriod={32}
+        removeClippedSubviews={Platform.OS === 'android'}
           ListEmptyComponent={
             <View style={[styles.empty, { minHeight: listViewportHeight }]}>
-              <Nibbly
-                state={nibblySemantics.noResults}
-                size={96}
-                accessibilityLabel="Nibbly no encuentra recetas con estos filtros"
-                style={{ marginBottom: spacing.md }}
-              />
               <Text style={styles.emptyTitle}>Sin resultados</Text>
               <Text style={styles.muted}>
-                Nibbly no encuentra nada con estos filtros. Prueba a relajar nevera, lista o tiempo.
+                {recipes.length === 0
+                  ? 'No encontramos resultados con estos filtros. Prueba a relajar lista o tiempo.'
+                  : `Ocultamos ${Math.max(0, recipes.length - visibleRecipes.length)} recetas por "No me gusta". Ajusta filtros o quita dislikes.`}
               </Text>
               <Pressable onPress={refresh} style={styles.retry} accessibilityRole="button">
                 <Text style={styles.retryText}>Actualizar</Text>

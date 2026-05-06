@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { CookingModeScreen } from '../screens/CookingModeScreen';
+import { CreateRecipeScreen } from '../screens/CreateRecipeScreen';
 import { FavoritesScreen } from '../screens/FavoritesScreen';
 import { RecipeDetailScreen } from '../screens/RecipeDetailScreen';
 import { colors } from '../theme/colors';
@@ -23,6 +24,7 @@ export function FavoritesStackNavigator() {
         component={FavoritesScreen}
         options={{ title: 'Favoritos', headerLargeTitle: false }}
       />
+      <Stack.Screen name="CreateRecipe" component={CreateRecipeScreen} options={{ title: 'Crear receta' }} />
       <Stack.Screen
         name="RecipeDetail"
         component={RecipeDetailScreen}

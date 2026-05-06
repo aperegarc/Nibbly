@@ -3,7 +3,6 @@ import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../app/providers/AuthProvider';
-import { Nibbly } from './nibbly/Nibbly';
 import { colors } from '../theme/colors';
 import { fontFamilies } from '../theme/fonts';
 import { spacing } from '../theme/spacing';
@@ -39,9 +38,6 @@ export function StitchSubScreenHeader({ rightIcon = 'kitchen', onRightPress }: P
     <View style={[styles.wrap, { paddingTop: insets.top }]}>
       <View style={styles.inner}>
         <View style={styles.brandBlock}>
-          <View style={styles.mascotRing}>
-            <Nibbly state="feliz" size={32} />
-          </View>
           <Text style={styles.brandName}>Nibbly</Text>
         </View>
         <View style={styles.right}>
@@ -89,17 +85,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  mascotRing: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.primaryContainer,
-    backgroundColor: colors.mascotBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
   },
   brandName: {
     fontFamily: fontFamilies.display,

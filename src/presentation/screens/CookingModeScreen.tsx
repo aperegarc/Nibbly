@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   LayoutAnimation,
@@ -20,8 +20,6 @@ import {
   extractSuggestedMinutesFromStep,
   getCookingSteps,
 } from '../../shared/utils/recipeCookingSteps';
-import { Nibbly, nibblySemantics } from '../components/nibbly';
-import type { NibblyState } from '../components/nibbly/nibblyTypes';
 import { useRecipeDetail } from '../hooks/useRecipeDetail';
 import type {
   FavoritesStackParamList,
@@ -49,8 +47,6 @@ type TimerState = {
 };
 
 const PRESET_MINUTES = [1, 3, 5, 10, 15];
-
-const COOKING_MASCOT_CYCLE: NibblyState[] = ['cocinera', 'feliz', 'alegre', 'pensativa', 'dudosa'];
 
 function formatClock(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -84,8 +80,6 @@ export function CookingModeScreen({ navigation, route }: Props) {
   const [ingredientsOpen, setIngredientsOpen] = useState(true);
   const [ingredientDone, setIngredientDone] = useState<boolean[]>([]);
   const [timer, setTimer] = useState<TimerState | null>(null);
-  const [mascotState, setMascotState] = useState<NibblyState>('cocinera');
-  const nibblyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!recipe) {
@@ -95,14 +89,6 @@ export function CookingModeScreen({ navigation, route }: Props) {
     setStepIndex(0);
     setTimer(null);
   }, [recipe?.id]);
-
-  useEffect(() => {
-    return () => {
-      if (nibblyResetRef.current) {
-        clearTimeout(nibblyResetRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (!timer?.running || timer.remainingSec <= 0) {
@@ -117,14 +103,6 @@ export function CookingModeScreen({ navigation, route }: Props) {
         if (next <= 0) {
           setTimeout(() => {
             Alert.alert('Temporizador', '¡Tiempo cumplido!');
-            setMascotState('celebrando');
-            if (nibblyResetRef.current) {
-              clearTimeout(nibblyResetRef.current);
-            }
-            nibblyResetRef.current = setTimeout(() => {
-              setMascotState('cocinera');
-              nibblyResetRef.current = null;
-            }, 3200);
           }, 0);
           return { remainingSec: 0, running: false };
         }
@@ -133,15 +111,6 @@ export function CookingModeScreen({ navigation, route }: Props) {
     }, 1000);
     return () => clearInterval(id);
   }, [timer?.running]);
-
-  const cycleCookingMascot = useCallback(() => {
-    if (mascotState === 'celebrando') {
-      return;
-    }
-    const pos = COOKING_MASCOT_CYCLE.indexOf(mascotState);
-    const next = COOKING_MASCOT_CYCLE[(pos >= 0 ? pos + 1 : 0) % COOKING_MASCOT_CYCLE.length];
-    setMascotState(next);
-  }, [mascotState]);
 
   const suggestedMinutes = useMemo(() => {
     if (!steps[stepIndex]) {
@@ -206,13 +175,7 @@ export function CookingModeScreen({ navigation, route }: Props) {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <Nibbly
-          state={nibblySemantics.loading}
-          size={120}
-          animate
-          accessibilityLabel="Nibbly está cargando la receta"
-        />
-        <Text style={[styles.muted, styles.loadingHint]}>Nibbly está preparando la cocina…</Text>
+        <Text style={[styles.muted, styles.loadingHint]}>Preparando la cocina…</Text>
       </View>
     );
   }
@@ -253,22 +216,8 @@ export function CookingModeScreen({ navigation, route }: Props) {
         <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
       </View>
 
-      <View style={styles.mascotRow}>
-        <Nibbly
-          state={mascotState}
-          size={58}
-          {...(mascotState === 'celebrando' ? {} : { onPress: cycleCookingMascot })}
-          accessibilityLabel={
-            mascotState === 'celebrando'
-              ? 'Nibbly celebra: el temporizador ha terminado'
-              : 'Nibbly te acompaña mientras cocinas'
-          }
-        />
-        <Text style={styles.mascotCaption}>
-          {mascotState === 'celebrando'
-            ? '¡Tiempo! Nibbly celebra contigo.'
-            : 'Toca a Nibbly para cambiar su estado de ánimo. ¡Ánimo con el paso!'}
-        </Text>
+      <View style={styles.statusRow}>
+        <Text style={styles.statusCaption}>Sigue los pasos y usa el temporizador para cada preparación.</Text>
       </View>
 
       <Text style={styles.stepBadge} accessibilityLiveRegion="polite">
@@ -443,14 +392,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderRadius: radius.full,
   },
-  mascotRow: {
+  statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
     marginBottom: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  mascotCaption: {
+  statusCaption: {
     ...typography.body,
     color: colors.textSecondary,
     flex: 1,

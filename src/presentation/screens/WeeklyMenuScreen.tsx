@@ -27,6 +27,7 @@ import { useWeeklyMenu } from '../../app/providers/WeeklyMenuProvider';
 import type { Recipe } from '../../domain/entities/Recipe';
 import type { UserPreferences } from '../../domain/entities/UserPreferences';
 import type { MealType, WeeklySlotRecipe } from '../../domain/entities/WeeklyMenu';
+import type { RecipeFilters } from '../../domain/repositories/RecipeRepository';
 import {
   collectUniqueRecipeIdsFromWeek,
   getMondayBasedDayIndex,
@@ -36,7 +37,9 @@ import {
 import { SupabaseRecipeRepository } from '../../infrastructure/repositories/SupabaseRecipeRepository';
 import { StitchSubScreenHeader } from '../components/StitchSubScreenHeader';
 import { useFavoriteRecipes } from '../hooks/useFavoriteRecipes';
+import { useRecipeDislikes } from '../hooks/useRecipeDislikes';
 import { useRecipeTitleSearch } from '../hooks/useRecipeTitleSearch';
+import { seededShuffle } from '../../shared/utils/seededShuffle';
 import type { MainTabParamList } from '../navigation/types';
 import type { WeeklyStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
@@ -89,6 +92,11 @@ export function WeeklyMenuScreen({ navigation }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [shoppingFromMenuLoading, setShoppingFromMenuLoading] = useState(false);
 
+  type GeneratorPreset = 'cheap' | 'healthy' | 'fast' | 'gym';
+  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [generatorPreset, setGeneratorPreset] = useState<GeneratorPreset>('fast');
+  const [generatorLoading, setGeneratorLoading] = useState(false);
+
   const todayIndex = getMondayBasedDayIndex(new Date());
 
   const preferences = useMemo(() => {
@@ -114,6 +122,8 @@ export function WeeklyMenuScreen({ navigation }: Props) {
   }, [profile]);
 
   const { recipes: favorites, loading: favoritesLoading } = useFavoriteRecipes(userId, preferences);
+
+  const { dislikedIds } = useRecipeDislikes(userId);
 
   const searchEnabled = pickerTarget !== null && pickerTab === 'search';
   const { recipes: searchResults, loading: searchLoading } = useRecipeTitleSearch(
@@ -222,6 +232,112 @@ export function WeeklyMenuScreen({ navigation }: Props) {
   };
 
   const closePicker = () => setPickerTarget(null);
+
+  const presetLabel: Record<GeneratorPreset, string> = {
+    cheap: 'Barato',
+    healthy: 'Saludable',
+    fast: 'Rápido',
+    gym: 'Gym',
+  };
+
+  const presetFilters = useMemo<RecipeFilters>(() => {
+    // Nota: en este v1 no tenemos coste/calorías/macros en el catálogo,
+    // así que los presets se basan en tiempo/dificultad + dieta del usuario.
+    const diet = profile?.diet;
+    switch (generatorPreset) {
+      case 'fast':
+        return { diet, maxCookTimeMinutes: 20, difficulty: 'easy' };
+      case 'cheap':
+        return { diet, maxCookTimeMinutes: 35, difficulty: 'easy' };
+      case 'healthy':
+        return { diet, maxCookTimeMinutes: 45, difficulty: 'medium' };
+      case 'gym':
+        return { diet, maxCookTimeMinutes: 30, difficulty: 'medium' };
+      default:
+        return { diet };
+    }
+  }, [generatorPreset, profile?.diet]);
+
+  const handleGenerateWeeklyMenu = useCallback(async () => {
+    if (generatorLoading) {
+      return;
+    }
+    if (!userId) {
+      return;
+    }
+
+    const emptyTargets: Array<{ dayIndex: number; meal: MealType }> = [];
+    for (let d = 0; d < 7; d += 1) {
+      const day = assignments[d];
+      for (const meal of MEAL_ORDER) {
+        if (day?.[meal] === null) {
+          emptyTargets.push({ dayIndex: d, meal });
+        }
+      }
+    }
+
+    if (emptyTargets.length === 0) {
+      Alert.alert('Menú completo', 'Tu semana ya tiene todas las comidas asignadas.');
+      return;
+    }
+
+    setGeneratorLoading(true);
+    try {
+      const repo = new SupabaseRecipeRepository();
+      const usedIds = new Set(collectUniqueRecipeIdsFromWeek(assignments));
+
+      const candidatesRaw = await repo.getFeed({
+        userId,
+        preferences: preferenceBundle,
+        filters: presetFilters,
+        page: 0,
+        pageSize: 96,
+        shoppingListIngredientNames: [],
+        shoppingListFilterActive: false,
+      });
+
+      const candidates = candidatesRaw.filter((r) => !usedIds.has(r.id) && !dislikedIds.has(r.id));
+      if (candidates.length < emptyTargets.length) {
+        Alert.alert(
+          'No hay suficientes recetas',
+          `Encontramos ${candidates.length} recetas para ${emptyTargets.length} huecos. Prueba otro preset.`,
+        );
+        return;
+      }
+
+      const seed = Math.floor(Math.random() * 2147483647);
+      const shuffled = seededShuffle(candidates, seed);
+      const chosen = shuffled.slice(0, emptyTargets.length);
+
+      if (chosen.length < emptyTargets.length) {
+        Alert.alert('Generación fallida', 'No se pudieron seleccionar recetas suficientes.');
+        return;
+      }
+
+      // Guardar secuencialmente para evitar carreras con el estado optimista del provider.
+      for (let i = 0; i < emptyTargets.length; i += 1) {
+        const t = emptyTargets[i];
+        const r = chosen[i]!;
+        // Se asume que r.imageUrl/ title existen (catalogo).
+        await setSlot(t.dayIndex, t.meal, { recipeId: r.id, title: r.title, imageUrl: r.imageUrl });
+      }
+
+      setGeneratorOpen(false);
+      Alert.alert('Menú generado', 'Se han rellenado tus huecos con recetas recomendadas.');
+    } catch (e) {
+      Alert.alert('Error al generar', e instanceof Error ? e.message : 'Intenta de nuevo.');
+    } finally {
+      setGeneratorLoading(false);
+    }
+  }, [
+    assignments,
+    generatorLoading,
+    presetFilters,
+    preferenceBundle,
+    setSlot,
+    userId,
+    dislikedIds,
+  ]);
 
   if (!userId) {
     return (
@@ -342,6 +458,27 @@ export function WeeklyMenuScreen({ navigation }: Props) {
         })()}
 
         <View style={styles.globalActions}>
+          <Pressable
+            onPress={() => setGeneratorOpen(true)}
+            disabled={generatorLoading}
+            style={({ pressed }) => [
+              styles.actionPrimary,
+              elevation.primaryButton,
+              generatorLoading && styles.actionDisabled,
+              pressed && !generatorLoading && { opacity: 0.92 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Generar menú semanal"
+          >
+            {generatorLoading ? (
+              <ActivityIndicator color={colors.accentForeground} />
+            ) : (
+              <>
+                <Ionicons name="sparkles-outline" size={22} color={colors.accentForeground} />
+                <Text style={styles.actionPrimaryText}>Generar menú semanal</Text>
+              </>
+            )}
+          </Pressable>
           <Pressable
             onPress={() => void handleBuildShoppingListFromMenu()}
             disabled={shoppingFromMenuLoading || listSchemaMissing}
@@ -509,6 +646,67 @@ export function WeeklyMenuScreen({ navigation }: Props) {
             </Pressable>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={generatorOpen} animationType="slide" transparent onRequestClose={() => setGeneratorOpen(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalAvoiding}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 8 : 0}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setGeneratorOpen(false)}>
+            <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>Generar menú</Text>
+
+              <View style={styles.modeRow}>
+                {(Object.keys(presetLabel) as GeneratorPreset[]).map((p) => (
+                  <Pressable
+                    key={p}
+                    onPress={() => setGeneratorPreset(p)}
+                    style={[styles.modeChip, generatorPreset === p && styles.modeChipOn]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: generatorPreset === p }}
+                  >
+                    <Text style={[styles.modeChipText, generatorPreset === p && styles.modeChipTextOn]}>{presetLabel[p]}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <View style={{ gap: spacing.md }}>
+                <Pressable
+                  onPress={() => void handleGenerateWeeklyMenu()}
+                  disabled={generatorLoading}
+                  style={({ pressed }) => [
+                    styles.actionPrimary,
+                    elevation.primaryButton,
+                    generatorLoading && styles.actionDisabled,
+                    pressed && !generatorLoading && { opacity: 0.92 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirmar generación de menú semanal"
+                >
+                  {generatorLoading ? (
+                    <ActivityIndicator color={colors.accentForeground} />
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      <Ionicons name="sparkles-outline" size={18} color={colors.accentForeground} />
+                      <Text style={styles.actionPrimaryText}>Generar</Text>
+                    </View>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  onPress={() => setGeneratorOpen(false)}
+                  style={[styles.actionGhost, { alignItems: 'center' }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancelar"
+                >
+                  <Text style={styles.actionGhostText}>Cancelar</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
         </KeyboardAvoidingView>
       </Modal>
     </View>

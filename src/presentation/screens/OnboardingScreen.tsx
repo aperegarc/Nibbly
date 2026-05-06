@@ -5,7 +5,6 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useProfile } from '../../app/providers/ProfileProvider';
-import { Nibbly } from '../components/nibbly/Nibbly';
 import { SignOutHeaderButton } from '../components/SignOutHeaderButton';
 import { TagChipsEditor } from '../components/TagChipsEditor';
 import { DIET_OPTIONS } from '../constants/dietOptions';
@@ -93,9 +92,6 @@ export function OnboardingScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
         <View style={styles.topBrand}>
-          <View style={styles.miniMascot}>
-            <Nibbly state="feliz" size={32} />
-          </View>
           <Text style={styles.topBrandText}>Nibbly</Text>
         </View>
         <SignOutHeaderButton variant="icon" />
@@ -114,9 +110,9 @@ export function OnboardingScreen({ navigation }: Props) {
               perfecto para ti!
             </Text>
           </View>
-          <View style={styles.heroMascotWrap}>
+          <View style={styles.heroAccentWrap}>
             <View style={styles.heroGlow} />
-            <Nibbly state="celebrando" size={140} accessibilityLabel="Nibbly te da la bienvenida" />
+            <Ionicons name="sparkles-outline" size={72} color={colors.accent} accessibilityLabel="Bienvenida" />
           </View>
         </View>
 
@@ -226,17 +222,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  miniMascot: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.primaryContainer,
-    backgroundColor: colors.highlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
   topBrandText: {
     fontFamily: fontFamilies.display,
     fontSize: 22,
@@ -267,7 +252,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     maxWidth: 520,
   },
-  heroMascotWrap: {
+  heroAccentWrap: {
     alignSelf: 'center',
     width: 180,
     height: 180,

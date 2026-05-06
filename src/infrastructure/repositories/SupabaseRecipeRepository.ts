@@ -7,7 +7,7 @@ import type {
   SearchRecipesByTitleQuery,
 } from '../../domain/repositories/RecipeRepository';
 import { AppError } from '../../shared/errors/AppError';
-import { sanitizeDiscoveryTags, sanitizeShoppingListFeedTags } from '../../shared/utils/sanitize';
+import { sanitizeShoppingListFeedTags } from '../../shared/utils/sanitize';
 import { getSupabaseClient } from '../supabase/client';
 
 const DIET_VALUES: DietType[] = [
@@ -37,6 +37,7 @@ type RecipeQueryRow = {
   cook_time_minutes: number;
   difficulty: string;
   diet_type: string;
+  cuisine_country?: string | null;
   data_source_name?: string | null;
   data_source_url?: string | null;
   recipe_ingredients: RecipeIngredientEmbed[] | null;
@@ -44,7 +45,7 @@ type RecipeQueryRow = {
 
 /** Select PostgREST en una línea (válido también dentro de `recipes(...)` en favoritos). */
 const RECIPE_LIST_SELECT =
-  'id, title, image_url, quick_steps, full_instructions, cook_time_minutes, difficulty, diet_type, data_source_name, data_source_url, recipe_ingredients(sort_order, ingredients(name))';
+  'id, title, image_url, quick_steps, full_instructions, cook_time_minutes, difficulty, diet_type, cuisine_country, data_source_name, data_source_url, recipe_ingredients(sort_order, ingredients(name))';
 
 type FavoriteJoinRow = {
   recipes: RecipeQueryRow | RecipeQueryRow[] | null;
@@ -136,24 +137,6 @@ async function resolveIngredientIds(names: string[]): Promise<string[]> {
   return [...ids];
 }
 
-async function filterRecipeIdsByIngredients(ingredientIds: string[]): Promise<string[]> {
-  if (ingredientIds.length === 0) {
-    return [];
-  }
-
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('recipe_ingredients')
-    .select('recipe_id')
-    .in('ingredient_id', ingredientIds);
-
-  if (error) {
-    throw new AppError(error.message || 'No se pudo filtrar por ingredientes.', 'INGREDIENT_FILTER_FAILED');
-  }
-
-  return [...new Set(data?.map((row) => row.recipe_id) ?? [])];
-}
-
 /** Recetas cuyos ingredientes son todos un subconjunto de `ingredientIds` (vía RPC en Supabase). */
 async function recipeIdsIngredientsSubsetOf(ingredientIds: string[]): Promise<string[]> {
   if (ingredientIds.length === 0) {
@@ -181,11 +164,6 @@ async function recipeIdsIngredientsSubsetOf(ingredientIds: string[]): Promise<st
   return data?.map((row) => row.recipe_id).filter(Boolean) ?? [];
 }
 
-function intersectRecipeIds(listIds: string[], pantryIds: string[]): string[] {
-  const pantrySet = new Set(pantryIds);
-  return listIds.filter((id) => pantrySet.has(id));
-}
-
 function mapRowToRecipe(row: RecipeQueryRow): Recipe {
   const ingredientNames = (row.recipe_ingredients ?? [])
     .slice()
@@ -204,6 +182,7 @@ function mapRowToRecipe(row: RecipeQueryRow): Recipe {
     cookTimeMinutes: row.cook_time_minutes,
     difficulty: asDifficulty(row.difficulty),
     dietType: asDietType(row.diet_type),
+    cuisineCountry: row.cuisine_country ?? null,
     dataSourceName: row.data_source_name ?? null,
     dataSourceUrl: row.data_source_url ?? null,
   };
@@ -222,14 +201,11 @@ export class SupabaseRecipeRepository implements RecipeRepository {
     const from = query.page * query.pageSize;
     const to = from + query.pageSize - 1;
 
-    const pantryTags = query.matchPantryIngredients
-      ? sanitizeDiscoveryTags(query.pantryIngredientNames)
-      : [];
     const listTags = query.shoppingListFilterActive
       ? sanitizeShoppingListFeedTags(query.shoppingListIngredientNames)
       : [];
 
-    let listRecipeIds: string[] | null = null;
+    let allowedRecipeIds: string[] | null = null;
     if (query.shoppingListFilterActive) {
       if (listTags.length === 0) {
         return [];
@@ -242,29 +218,7 @@ export class SupabaseRecipeRepository implements RecipeRepository {
       if (subsetIds.length === 0) {
         return [];
       }
-      listRecipeIds = subsetIds;
-    }
-
-    let pantryRecipeIds: string[] | null = null;
-    if (pantryTags.length > 0) {
-      const pantryIngredientIds = await resolveIngredientIds(pantryTags);
-      if (pantryIngredientIds.length === 0) {
-        return [];
-      }
-      const anyMatchIds = await filterRecipeIdsByIngredients(pantryIngredientIds);
-      if (anyMatchIds.length === 0) {
-        return [];
-      }
-      pantryRecipeIds = anyMatchIds;
-    }
-
-    let allowedRecipeIds: string[] | null = null;
-    if (listRecipeIds && pantryRecipeIds) {
-      allowedRecipeIds = intersectRecipeIds(listRecipeIds, pantryRecipeIds);
-    } else if (listRecipeIds) {
-      allowedRecipeIds = listRecipeIds;
-    } else if (pantryRecipeIds) {
-      allowedRecipeIds = pantryRecipeIds;
+      allowedRecipeIds = subsetIds;
     }
 
     if (allowedRecipeIds && allowedRecipeIds.length === 0) {
@@ -287,6 +241,10 @@ export class SupabaseRecipeRepository implements RecipeRepository {
 
     if (query.filters?.difficulty) {
       request = request.eq('difficulty', query.filters.difficulty);
+    }
+
+    if (query.filters?.country) {
+      request = request.eq('cuisine_country', query.filters.country);
     }
 
     const { data, error } = await request
@@ -340,7 +298,6 @@ export class SupabaseRecipeRepository implements RecipeRepository {
       .from('recipes')
       .select(RECIPE_LIST_SELECT)
       .eq('id', query.recipeId)
-      .eq('is_published', true)
       .maybeSingle();
 
     if (error) {

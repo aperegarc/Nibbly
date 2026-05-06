@@ -1,36 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { LIMITS } from '../../shared/utils/limits';
-import { TagChipsEditor } from './TagChipsEditor';
 import { colors } from '../theme/colors';
 import { fontFamilies } from '../theme/fonts';
 import { spacing } from '../theme/spacing';
 
 type Props = {
-  ingredientTags: string[];
-  onAddIngredient: (value: string) => void;
-  onRemoveIngredient: (value: string) => void;
+  onSearch: () => void;
 };
 
-export function FeedToolbar({ ingredientTags, onAddIngredient, onRemoveIngredient }: Props) {
+export function FeedToolbar({ onSearch }: Props) {
   return (
     <View style={styles.container}>
-      <View style={styles.sectionHead}>
-        <Ionicons name="restaurant-outline" size={16} color={colors.textMuted} />
-        <Text style={styles.sectionLabel}>Tengo en mi nevera</Text>
-      </View>
-      <TagChipsEditor
-        label=""
-        tags={ingredientTags}
-        onAdd={onAddIngredient}
-        onRemove={onRemoveIngredient}
-        placeholder="Añade ingredientes…"
-        maxTags={LIMITS.discoveryTagMaxCount}
-        maxLength={LIMITS.discoveryTagMaxLength}
-        hint=""
-        useCatalogIngredients
-      />
+      <Pressable
+        onPress={onSearch}
+        style={({ pressed }) => [styles.searchBtn, pressed && styles.searchBtnPressed]}
+        accessibilityRole="button"
+        accessibilityLabel="Buscar recetas por nombre"
+      >
+        <Ionicons name="search-outline" size={16} color={colors.textMuted} />
+        <Text style={styles.searchBtnText}>Buscar por nombre</Text>
+      </Pressable>
     </View>
   );
 }
@@ -43,18 +33,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderSoft,
     backgroundColor: colors.background,
-    gap: spacing.sm,
   },
-  sectionHead: {
+  searchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    backgroundColor: colors.surfaceCard,
   },
-  sectionLabel: {
-    fontFamily: fontFamilies.semiBold,
-    fontSize: 12,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: colors.textMuted,
+  searchBtnPressed: {
+    opacity: 0.9,
+  },
+  searchBtnText: {
+    fontFamily: fontFamilies.medium,
+    fontSize: 13,
+    color: colors.textSecondary,
   },
 });

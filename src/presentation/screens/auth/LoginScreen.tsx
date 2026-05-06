@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../../app/providers/AuthProvider';
-import { Nibbly } from '../../components/nibbly/Nibbly';
 import type { AuthStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
 import { radius } from '../../theme/radius';
@@ -58,7 +57,6 @@ export function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.container}>
-          <Nibbly state="feliz" size={96} style={styles.mascot} accessibilityLabel="Nibbly" />
           <Text style={styles.brand}>Nibbly</Text>
           <Text style={styles.lead}>Inicia sesión para cocinar con recetas pensadas para ti.</Text>
 
@@ -146,10 +144,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     gap: spacing.sm,
-  },
-  mascot: {
-    alignSelf: 'center',
-    marginBottom: spacing.sm,
   },
   brand: {
     ...typography.display,
