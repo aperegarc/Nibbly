@@ -13,7 +13,8 @@
       "backgroundColor": "#F6F3ED"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aperegarc.nibbly"
     },
     "android": {
       "adaptiveIcon": {
