@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useKeepAwake } from 'expo-keep-awake';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   LayoutAnimation,
@@ -77,9 +77,12 @@ export function CookingModeScreen({ navigation, route }: Props) {
   const steps = useMemo(() => (recipe ? getCookingSteps(recipe) : []), [recipe]);
 
   const [stepIndex, setStepIndex] = useState(0);
-  const [ingredientsOpen, setIngredientsOpen] = useState(true);
+  const [ingredientsOpen, setIngredientsOpen] = useState(false);
   const [ingredientDone, setIngredientDone] = useState<boolean[]>([]);
   const [timer, setTimer] = useState<TimerState | null>(null);
+  const [autoNextStep, setAutoNextStep] = useState(false);
+  const [autoStartSuggestedTimer, setAutoStartSuggestedTimer] = useState(false);
+  const lastAutoStartedStepRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!recipe) {
@@ -88,6 +91,7 @@ export function CookingModeScreen({ navigation, route }: Props) {
     setIngredientDone(recipe.ingredients.map(() => false));
     setStepIndex(0);
     setTimer(null);
+    lastAutoStartedStepRef.current = null;
   }, [recipe?.id]);
 
   useEffect(() => {
@@ -103,6 +107,10 @@ export function CookingModeScreen({ navigation, route }: Props) {
         if (next <= 0) {
           setTimeout(() => {
             Alert.alert('Temporizador', '¡Tiempo cumplido!');
+            if (autoNextStep && stepIndex < steps.length - 1) {
+              setStepIndex((i) => i + 1);
+              setTimer(null);
+            }
           }, 0);
           return { remainingSec: 0, running: false };
         }
@@ -110,7 +118,7 @@ export function CookingModeScreen({ navigation, route }: Props) {
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [timer?.running]);
+  }, [autoNextStep, stepIndex, steps.length, timer?.running]);
 
   const suggestedMinutes = useMemo(() => {
     if (!steps[stepIndex]) {
@@ -118,6 +126,17 @@ export function CookingModeScreen({ navigation, route }: Props) {
     }
     return extractSuggestedMinutesFromStep(steps[stepIndex]);
   }, [steps, stepIndex]);
+
+  useEffect(() => {
+    if (!autoStartSuggestedTimer || !suggestedMinutes || timer) {
+      return;
+    }
+    if (lastAutoStartedStepRef.current === stepIndex) {
+      return;
+    }
+    lastAutoStartedStepRef.current = stepIndex;
+    setTimer({ remainingSec: Math.min(Math.max(suggestedMinutes, 1), 24 * 60) * 60, running: true });
+  }, [autoStartSuggestedTimer, stepIndex, suggestedMinutes, timer]);
 
   const toggleIngredient = useCallback((index: number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -278,6 +297,28 @@ export function CookingModeScreen({ navigation, route }: Props) {
 
         <View style={styles.timerCard}>
           <Text style={styles.timerTitle}>Temporizador</Text>
+          <Pressable
+            onPress={() => setAutoNextStep((v) => !v)}
+            style={[styles.autoNextToggle, autoNextStep && styles.autoNextToggleOn]}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: autoNextStep }}
+            accessibilityLabel="Pasar automáticamente al siguiente paso al terminar el temporizador"
+          >
+            <Text style={[styles.autoNextToggleText, autoNextStep && styles.autoNextToggleTextOn]}>
+              Autoplay pasos: {autoNextStep ? 'Activado' : 'Desactivado'}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setAutoStartSuggestedTimer((v) => !v)}
+            style={[styles.autoNextToggle, autoStartSuggestedTimer && styles.autoNextToggleOn]}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: autoStartSuggestedTimer }}
+            accessibilityLabel="Iniciar automáticamente el temporizador sugerido en cada paso"
+          >
+            <Text style={[styles.autoNextToggleText, autoStartSuggestedTimer && styles.autoNextToggleTextOn]}>
+              Auto timer sugerido: {autoStartSuggestedTimer ? 'Activado' : 'Desactivado'}
+            </Text>
+          </Pressable>
           {timer ? (
             <View style={styles.timerRow}>
               <Text style={styles.timerClock} accessibilityLabel={`Quedan ${formatClock(timer.remainingSec)}`}>
@@ -516,6 +557,27 @@ const styles = StyleSheet.create({
   timerTitle: {
     ...typography.subtitle,
     color: colors.textPrimary,
+  },
+  autoNextToggle: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  autoNextToggleOn: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  autoNextToggleText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  autoNextToggleTextOn: {
+    color: colors.accent,
   },
   timerCaption: {
     ...typography.caption,

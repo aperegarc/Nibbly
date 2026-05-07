@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Nibbly",
-    "slug": "recepy",
+    "slug": "nibbly",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,6 +29,12 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4cebfa56-57f3-430e-a864-cdf35f6e16b7"
+      }
+    },
+    "owner": "aperegarc"
   }
 }
