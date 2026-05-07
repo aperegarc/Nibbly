@@ -1,0 +1,35 @@
+name: Security RLS Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  rls-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run RLS security checks
+        run: npm run security:rls-check
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          RLS_USER_A_EMAIL: ${{ secrets.RLS_USER_A_EMAIL }}
+          RLS_USER_A_PASSWORD: ${{ secrets.RLS_USER_A_PASSWORD }}
+          RLS_USER_B_EMAIL: ${{ secrets.RLS_USER_B_EMAIL }}
+          RLS_USER_B_PASSWORD: ${{ secrets.RLS_USER_B_PASSWORD }}
+          RLS_RECIPE_ID: ${{ secrets.RLS_RECIPE_ID }}

@@ -139,6 +139,10 @@ export function useRecipeFeed({
     if (typeof filters.maxCookTimeMinutes === 'number') {
       next.maxCookTimeMinutes = filters.maxCookTimeMinutes;
     }
+    if (filters.timeBucket) {
+      next.timeBucket = filters.timeBucket;
+      next.maxCookTimeMinutes = undefined;
+    }
     if (filters.difficulty) {
       next.difficulty = filters.difficulty;
     }

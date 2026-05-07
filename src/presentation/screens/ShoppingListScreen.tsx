@@ -1,9 +1,10 @@
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -34,6 +35,7 @@ export function ShoppingListScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const { session } = useAuth();
   const userId = session?.user.id;
+  const [showSettings, setShowSettings] = useState(false);
   const {
     items,
     loading,
@@ -42,6 +44,8 @@ export function ShoppingListScreen() {
     addItem,
     setItemChecked,
     removeItem,
+    clearCheckedItems,
+    clearAllItems,
     useShoppingListForFeedFilter,
     setUseShoppingListForFeedFilter,
   } = useShoppingList();
@@ -88,6 +92,40 @@ export function ShoppingListScreen() {
     }
   }, [shareMessage]);
 
+  const onClearList = useCallback(() => {
+    if (items.length === 0) {
+      return;
+    }
+    Alert.alert('Limpiar lista', '¿Quieres borrar todos los ítems de la lista de la compra?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Limpiar',
+        style: 'destructive',
+        onPress: () => {
+          void clearAllItems();
+        },
+      },
+    ]);
+  }, [clearAllItems, items.length]);
+
+  const checkedCount = useMemo(() => items.filter((i) => i.checked).length, [items]);
+
+  const onClearChecked = useCallback(() => {
+    if (checkedCount === 0) {
+      return;
+    }
+    Alert.alert('Limpiar comprados', '¿Quieres borrar solo los ítems que ya marcaste como comprados?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Limpiar comprados',
+        style: 'destructive',
+        onPress: () => {
+          void clearCheckedItems();
+        },
+      },
+    ]);
+  }, [checkedCount, clearCheckedItems]);
+
   if (!userId) {
     return (
       <View style={styles.centered}>
@@ -109,29 +147,70 @@ export function ShoppingListScreen() {
           <Text style={styles.pageSubtitle}>Organiza tus ingredientes para la semana.</Text>
         </View>
 
-      {!listSchemaMissing ? (
-        <View style={styles.filterCard}>
-          <View style={styles.filterCardTop}>
-            <Switch
-              value={useShoppingListForFeedFilter}
-              onValueChange={setUseShoppingListForFeedFilter}
-              trackColor={{ false: colors.border, true: colors.accentSoft }}
-              thumbColor={useShoppingListForFeedFilter ? colors.accent : colors.surface}
-              accessibilityLabel="Usar pendientes como filtro en el feed"
-            />
-            <Text style={styles.filterInlineLabel}>Usar pendientes como filtro en el feed</Text>
-          </View>
-          <Pressable
-            onPress={() => void onShare()}
-            style={({ pressed }) => [styles.sharePill, pressed && { opacity: 0.9 }]}
-            accessibilityRole="button"
-            accessibilityLabel="Compartir lista como texto"
-          >
-            <Ionicons name="share-outline" size={20} color={colors.onSecondary} />
-            <Text style={styles.sharePillText}>Compartir lista como texto</Text>
-          </Pressable>
-        </View>
-      ) : null}
+        {!listSchemaMissing ? (
+          <>
+            <Pressable
+              onPress={() => setShowSettings((v) => !v)}
+              style={({ pressed }) => [styles.settingsToggle, pressed && { opacity: 0.9 }]}
+              accessibilityRole="button"
+              accessibilityLabel={showSettings ? 'Ocultar ajustes' : 'Mostrar ajustes'}
+            >
+              <Ionicons name={showSettings ? 'chevron-up-outline' : 'chevron-down-outline'} size={18} color={colors.textSecondary} />
+              <Text style={styles.settingsToggleText}>{showSettings ? 'Ocultar ajustes' : 'Mostrar ajustes'}</Text>
+            </Pressable>
+            {showSettings ? (
+              <View style={styles.filterCard}>
+                <View style={styles.filterCardTop}>
+                  <Switch
+                    value={useShoppingListForFeedFilter}
+                    onValueChange={setUseShoppingListForFeedFilter}
+                    trackColor={{ false: colors.border, true: colors.accentSoft }}
+                    thumbColor={useShoppingListForFeedFilter ? colors.accent : colors.surface}
+                    accessibilityLabel="Usar pendientes como filtro en el feed"
+                  />
+                  <Text style={styles.filterInlineLabel}>Usar pendientes como filtro en el feed</Text>
+                </View>
+                <Pressable
+                  onPress={() => void onShare()}
+                  style={({ pressed }) => [styles.sharePill, pressed && { opacity: 0.9 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Compartir lista como texto"
+                >
+                  <Ionicons name="share-outline" size={20} color={colors.onSecondary} />
+                  <Text style={styles.sharePillText}>Compartir lista como texto</Text>
+                </Pressable>
+                <Pressable
+                  onPress={onClearChecked}
+                  disabled={checkedCount === 0}
+                  style={({ pressed }) => [
+                    styles.clearPill,
+                    checkedCount === 0 && styles.clearPillDisabled,
+                    pressed && checkedCount > 0 && { opacity: 0.9 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Limpiar ítems marcados como comprados"
+                >
+                  <Ionicons name="checkmark-done-outline" size={18} color={colors.danger} />
+                  <Text style={styles.clearPillText}>Limpiar comprados</Text>
+                </Pressable>
+                <Pressable
+                  onPress={onClearList}
+                  disabled={items.length === 0}
+                  style={({ pressed }) => [
+                    styles.clearPill,
+                    items.length === 0 && styles.clearPillDisabled,
+                    pressed && items.length > 0 && { opacity: 0.9 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Limpiar toda la lista de la compra"
+                >
+                  <Ionicons name="trash-bin-outline" size={18} color={colors.danger} />
+                  <Text style={styles.clearPillText}>Limpiar lista</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </>
+        ) : null}
 
       {listSchemaMissing ? (
         <View style={styles.schemaBanner}>
@@ -171,6 +250,8 @@ export function ShoppingListScreen() {
           data={items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           ListFooterComponent={
             items.length > 0 ? (
               <View style={styles.listFooterHint}>
@@ -277,6 +358,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSoft,
   },
+  settingsToggle: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  settingsToggleText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontFamily: fontFamilies.semiBold,
+  },
   filterCardTop: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -305,6 +405,27 @@ const styles = StyleSheet.create({
     fontFamily: fontFamilies.semiBold,
     fontSize: 14,
     color: colors.onSecondary,
+  },
+  clearPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.errorContainer,
+  },
+  clearPillDisabled: {
+    opacity: 0.45,
+  },
+  clearPillText: {
+    fontFamily: fontFamilies.semiBold,
+    fontSize: 14,
+    color: colors.danger,
   },
   flex: {
     flex: 1,

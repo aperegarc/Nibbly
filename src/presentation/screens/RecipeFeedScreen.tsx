@@ -36,6 +36,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
 import { typography } from '../theme/typography';
+import { getRecipeTimeBucketLabel } from '../../shared/utils/recipeTime';
 
 type FeedItem = {
   recipe: Recipe;
@@ -205,7 +206,7 @@ export function RecipeFeedScreen() {
       return;
     }
     const options = topRecommendations.map((item, index) => ({
-      text: `${index + 1}. ${item.recipe.title} (${item.recipe.cookTimeMinutes} min)`,
+      text: `${index + 1}. ${item.recipe.title} (${getRecipeTimeBucketLabel(item.recipe.cookTimeMinutes)})`,
       onPress: () => handleOpenDetail(item.recipe.id),
     }));
     Alert.alert('¿Qué como hoy?', 'Elige una opción recomendada para hoy:', [

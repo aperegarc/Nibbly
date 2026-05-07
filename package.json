@@ -11,7 +11,10 @@
     "recipes:import": "node scripts/import-themealdb.mjs",
     "recipes:import:es": "node scripts/import-themealdb.mjs --all-letters --per-letter=10 --max-total=300",
     "recipes:import:api:many": "node scripts/import-themealdb.mjs --all-letters --per-letter=50 --max-total=800 --no-translate",
-    "recipes:import:api:many:es": "node scripts/import-themealdb.mjs --all-letters --per-letter=50 --max-total=800"
+    "recipes:import:api:many:es": "node scripts/import-themealdb.mjs --all-letters --per-letter=50 --max-total=800",
+    "recipes:import:country": "node scripts/import-themealdb.mjs --countries=Italian,Spanish,Mexican,French --per-country=40 --max-total=300",
+    "recipes:time:sync": "node scripts/sync-recipe-times-from-events.mjs",
+    "security:rls-check": "node scripts/rls-check.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/be-vietnam-pro": "^0.4.1",

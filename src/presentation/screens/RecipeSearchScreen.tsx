@@ -15,6 +15,7 @@ import { useProfile } from '../../app/providers/ProfileProvider';
 import type { Recipe } from '../../domain/entities/Recipe';
 import type { UserPreferences } from '../../domain/entities/UserPreferences';
 import { useRecipeTitleSearch } from '../hooks/useRecipeTitleSearch';
+import { getRecipeTimeBucketLabel } from '../../shared/utils/recipeTime';
 import type { FeedStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
 import { radius } from '../theme/radius';
@@ -57,7 +58,7 @@ export function RecipeSearchScreen({ navigation }: Props) {
         <Text style={styles.rowTitle} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={styles.rowMeta}>{item.cookTimeMinutes} min</Text>
+        <Text style={styles.rowMeta}>{getRecipeTimeBucketLabel(item.cookTimeMinutes)}</Text>
       </View>
     </Pressable>
   );
@@ -93,6 +94,7 @@ export function RecipeSearchScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
+          keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             query.trim().length >= 2 ? (

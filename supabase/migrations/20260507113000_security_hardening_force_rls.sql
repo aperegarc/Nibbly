@@ -1,0 +1,29 @@
+-- Security hardening: fuerza RLS en todas las tablas de aplicación.
+-- Esto añade una capa de defensa para evitar bypass accidental de políticas.
+
+ALTER TABLE IF EXISTS public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.profiles FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.recipes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.recipes FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.ingredients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.ingredients FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.recipe_ingredients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.recipe_ingredients FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.favorites FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.shopping_list_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.shopping_list_items FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.weekly_menu_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.weekly_menu_slots FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.recipe_dislikes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.recipe_dislikes FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE IF EXISTS public.recipe_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.recipe_events FORCE ROW LEVEL SECURITY;

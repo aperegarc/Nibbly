@@ -4,6 +4,7 @@ import type { UserPreferences } from '../entities/UserPreferences';
 export type RecipeFilters = {
   diet?: DietType;
   maxCookTimeMinutes?: number;
+  timeBucket?: 'short' | 'medium' | 'long';
   difficulty?: RecipeDifficulty;
   country?: string;
 };

@@ -35,6 +35,8 @@ type ShoppingListContextValue = {
   addItems: (labels: string[]) => Promise<void>;
   setItemChecked: (itemId: string, checked: boolean) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
+  clearCheckedItems: () => Promise<void>;
+  clearAllItems: () => Promise<void>;
 };
 
 const ShoppingListContext = createContext<ShoppingListContextValue | null>(null);
@@ -212,6 +214,40 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
     [listSchemaMissing, repository, userId],
   );
 
+  const clearAllItems = useCallback(async () => {
+    if (!userId || listSchemaMissing || skipShoppingFetchRef.current) {
+      return;
+    }
+    try {
+      await repository.clearByUser(userId);
+      setItems([]);
+    } catch (e) {
+      if (isMissingShoppingListTableError(e)) {
+        skipShoppingFetchRef.current = true;
+        setListSchemaMissing(true);
+      } else {
+        throw e;
+      }
+    }
+  }, [listSchemaMissing, repository, userId]);
+
+  const clearCheckedItems = useCallback(async () => {
+    if (!userId || listSchemaMissing || skipShoppingFetchRef.current) {
+      return;
+    }
+    try {
+      await repository.clearCheckedByUser(userId);
+      setItems((prev) => prev.filter((i) => !i.checked));
+    } catch (e) {
+      if (isMissingShoppingListTableError(e)) {
+        skipShoppingFetchRef.current = true;
+        setListSchemaMissing(true);
+      } else {
+        throw e;
+      }
+    }
+  }, [listSchemaMissing, repository, userId]);
+
   const value = useMemo(
     () => ({
       items,
@@ -225,6 +261,8 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
       addItems,
       setItemChecked,
       removeItem,
+      clearCheckedItems,
+      clearAllItems,
     }),
     [
       addItem,
@@ -238,6 +276,8 @@ export function ShoppingListProvider({ children }: { children: ReactNode }) {
       setUseShoppingListForFeedFilter,
       uncheckedLabels,
       useShoppingListForFeedFilter,
+      clearCheckedItems,
+      clearAllItems,
     ],
   );
 

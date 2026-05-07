@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../app/providers/AuthProvider';
 import { useProfile } from '../../app/providers/ProfileProvider';
+import { trackRecipeEvent } from '../../infrastructure/analytics/recipeEvents';
 import {
   extractSuggestedMinutesFromStep,
   getCookingSteps,
@@ -54,6 +55,10 @@ function formatClock(totalSec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function formatMinutes(seconds: number): string {
+  return `${Math.max(1, Math.round(seconds / 60))} min`;
+}
+
 export function CookingModeScreen({ navigation, route }: Props) {
   const { recipeId } = route.params;
   useKeepAwake('nibbly-cooking');
@@ -83,6 +88,8 @@ export function CookingModeScreen({ navigation, route }: Props) {
   const [autoNextStep, setAutoNextStep] = useState(false);
   const [autoStartSuggestedTimer, setAutoStartSuggestedTimer] = useState(false);
   const lastAutoStartedStepRef = useRef<number | null>(null);
+  const sessionStartedAtRef = useRef<number>(Date.now());
+  const completionTrackedRef = useRef(false);
 
   useEffect(() => {
     if (!recipe) {
@@ -92,7 +99,28 @@ export function CookingModeScreen({ navigation, route }: Props) {
     setStepIndex(0);
     setTimer(null);
     lastAutoStartedStepRef.current = null;
+    sessionStartedAtRef.current = Date.now();
+    completionTrackedRef.current = false;
   }, [recipe?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (!session?.user.id || !recipe?.id || completionTrackedRef.current) {
+        return;
+      }
+      const elapsedSec = Math.max(1, Math.round((Date.now() - sessionStartedAtRef.current) / 1000));
+      void trackRecipeEvent({
+        userId: session.user.id,
+        recipeId: recipe.id,
+        eventType: 'cooking_abandoned',
+        meta: {
+          elapsed_sec: elapsedSec,
+          step_index: stepIndex + 1,
+          total_steps: steps.length,
+        },
+      });
+    };
+  }, [recipe?.id, session?.user.id, stepIndex, steps.length]);
 
   useEffect(() => {
     if (!timer?.running || timer.remainingSec <= 0) {
@@ -165,17 +193,46 @@ export function CookingModeScreen({ navigation, route }: Props) {
     setTimer(null);
   }, []);
 
+  const completeCookingSession = useCallback(() => {
+    const userId = session?.user.id;
+    if (!userId || !recipe?.id) {
+      navigation.goBack();
+      return;
+    }
+    const elapsedSec = Math.max(1, Math.round((Date.now() - sessionStartedAtRef.current) / 1000));
+    const estimatedSec = Math.max(1, recipe.cookTimeMinutes) * 60;
+    completionTrackedRef.current = true;
+    void trackRecipeEvent({
+      userId,
+      recipeId: recipe.id,
+      eventType: 'cooking_completed',
+      meta: {
+        elapsed_sec: elapsedSec,
+        estimated_sec: estimatedSec,
+        total_steps: steps.length,
+        slower_than_estimate: elapsedSec > estimatedSec,
+      },
+    });
+    navigation.goBack();
+  }, [navigation, recipe?.cookTimeMinutes, recipe?.id, session?.user.id, steps.length]);
+
   const goNext = useCallback(() => {
     if (stepIndex >= steps.length - 1) {
-      Alert.alert('Receta', '¿Salir del modo cocinar?', [
+      const elapsedSec = Math.max(1, Math.round((Date.now() - sessionStartedAtRef.current) / 1000));
+      const estimatedSec = Math.max(1, recipe?.cookTimeMinutes ?? 1) * 60;
+      Alert.alert('Receta completada', `Tiempo real: ${formatMinutes(elapsedSec)}\nEstimado: ${formatMinutes(estimatedSec)}`, [
         { text: 'Seguir', style: 'cancel' },
-        { text: 'Salir', style: 'default', onPress: () => navigation.goBack() },
+        {
+          text: 'Terminar',
+          style: 'default',
+          onPress: completeCookingSession,
+        },
       ]);
       return;
     }
     setStepIndex((i) => i + 1);
     setTimer(null);
-  }, [navigation, stepIndex, steps.length]);
+  }, [completeCookingSession, recipe?.cookTimeMinutes, stepIndex, steps.length]);
 
   useEffect(() => {
     navigation.setOptions({

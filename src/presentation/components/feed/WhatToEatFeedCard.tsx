@@ -5,6 +5,7 @@ import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Recipe } from '../../../domain/entities/Recipe';
+import { getRecipeTimeBucketLabel } from '../../../shared/utils/recipeTime';
 import { dietBadgeLabel } from '../../constants/dietOptions';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/fonts';
@@ -81,7 +82,7 @@ function WhatToEatFeedCardInner({ height, featuredRecipe, onOpenOptions, onOpenF
                 </Text>
                 <View style={styles.featureMeta}>
                   <Text style={styles.featureMetaText}>
-                    {featuredRecipe.cookTimeMinutes} min · {DIFFICULTY_LABEL[featuredRecipe.difficulty]}
+                    {getRecipeTimeBucketLabel(featuredRecipe.cookTimeMinutes)} · {DIFFICULTY_LABEL[featuredRecipe.difficulty]}
                   </Text>
                   <View style={styles.dietPill}>
                     <Text style={styles.dietPillText} numberOfLines={1}>

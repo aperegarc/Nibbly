@@ -39,13 +39,11 @@ const DIFFICULTY_OPTIONS: { value: RecipeDifficulty; label: string }[] = [
   { value: 'hard', label: 'Difícil' },
 ];
 
-const TIME_OPTIONS: { label: string; value?: number }[] = [
+const TIME_OPTIONS: { label: string; value?: 'short' | 'medium' | 'long' }[] = [
   { label: 'Cualquiera', value: undefined },
-  { label: '≤ 15 min', value: 15 },
-  { label: '≤ 30 min', value: 30 },
-  { label: '≤ 45 min', value: 45 },
-  { label: '≤ 60 min', value: 60 },
-  { label: '≤ 120 min', value: 120 },
+  { label: 'Corto', value: 'short' },
+  { label: 'Medio', value: 'medium' },
+  { label: 'Largo', value: 'long' },
 ];
 
 export function RecipeFilterModal({
@@ -138,7 +136,7 @@ export function RecipeFilterModal({
             ))}
           </View>
 
-          <Text style={styles.section}>Tiempo máximo</Text>
+          <Text style={styles.section}>Duración</Text>
           <View style={styles.rowWrap}>
             {TIME_OPTIONS.map((option) => (
               <FilterChip
@@ -146,13 +144,14 @@ export function RecipeFilterModal({
                 label={option.label}
                 selected={
                   option.value === undefined
-                    ? draft.maxCookTimeMinutes === undefined
-                    : draft.maxCookTimeMinutes === option.value
+                    ? draft.timeBucket === undefined
+                    : draft.timeBucket === option.value
                 }
                 onPress={() =>
                   setDraft((prev) => ({
                     ...prev,
-                    maxCookTimeMinutes: option.value,
+                    maxCookTimeMinutes: undefined,
+                    timeBucket: option.value,
                   }))
                 }
               />

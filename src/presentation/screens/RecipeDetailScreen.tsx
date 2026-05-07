@@ -20,6 +20,7 @@ import { useAuth } from '../../app/providers/AuthProvider';
 import { useProfile } from '../../app/providers/ProfileProvider';
 import { trackRecipeEvent } from '../../infrastructure/analytics/recipeEvents';
 import { getCookingSteps } from '../../shared/utils/recipeCookingSteps';
+import { getRecipeTimeBucketLabel } from '../../shared/utils/recipeTime';
 import type {
   FavoritesStackParamList,
   FeedStackParamList,
@@ -151,7 +152,7 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
     const recipeText = [
       `*${recipe.title}*`,
       '',
-      `Tiempo: ${recipe.cookTimeMinutes} min`,
+      `Duración: ${getRecipeTimeBucketLabel(recipe.cookTimeMinutes)}`,
       `Dificultad: ${DIFFICULTY_LABEL[recipe.difficulty]}`,
       `Dieta: ${dietBadgeLabel(recipe.dietType)}`,
       '',
@@ -251,7 +252,7 @@ export function RecipeDetailScreen({ navigation, route }: Props) {
           <View style={styles.metaGrid}>
             <View style={styles.metaCell}>
               <Ionicons name="time-outline" size={22} color={colors.accent} />
-              <Text style={styles.metaCellText}>{recipe.cookTimeMinutes} min</Text>
+              <Text style={styles.metaCellText}>{getRecipeTimeBucketLabel(recipe.cookTimeMinutes)}</Text>
             </View>
             <View style={styles.metaDivider} />
             <View style={styles.metaCell}>

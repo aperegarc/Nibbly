@@ -567,6 +567,13 @@ async function fetchMealSummariesForLetter(letter, limit) {
   return meals.slice(0, limit);
 }
 
+async function fetchMealSummariesForArea(area, limit) {
+  const filterRes = await fetch(`${THEMEALDB_BASE}/filter.php?a=${encodeURIComponent(area)}`);
+  const filterJson = await filterRes.json();
+  const meals = filterJson.meals || [];
+  return meals.slice(0, limit);
+}
+
 async function main() {
   loadLocalEnv();
 
@@ -574,9 +581,12 @@ async function main() {
   const noTranslate = args.get('no-translate') === 'true' || args.get('no-translate') === '';
   const allLettersFlag = args.get('all-letters') === 'true' || args.get('all-letters') === '';
   const lettersCsv = args.get('letters');
+  const countriesCsv = args.get('countries');
+  const singleCountry = args.get('country');
   const singleLetter = (args.get('letter') || 'a').slice(0, 1).toLowerCase();
   const countSingle = Math.min(50, Math.max(1, Number(args.get('count') || 10)));
   const perLetter = Math.min(50, Math.max(1, Number(args.get('per-letter') || 8)));
+  const perCountry = Math.min(80, Math.max(1, Number(args.get('per-country') || perLetter)));
   const maxTotal = Math.min(800, Math.max(1, Number(args.get('max-total') || 500)));
 
   const supabaseUrl = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -594,7 +604,17 @@ async function main() {
   /** @type {{ idMeal: string }[]} */
   let queue = [];
 
-  if (lettersCsv) {
+  if (countriesCsv || singleCountry) {
+    const countries = (countriesCsv || singleCountry || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    for (const country of countries) {
+      await sleep(250);
+      const part = await fetchMealSummariesForArea(country, perCountry);
+      queue.push(...part);
+    }
+  } else if (lettersCsv) {
     const letters = lettersCsv
       .split(',')
       .map((s) => s.trim().toLowerCase().slice(0, 1))

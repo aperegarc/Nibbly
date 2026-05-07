@@ -5,6 +5,7 @@ import { memo, useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Recipe } from '../../../domain/entities/Recipe';
+import { getRecipeTimeBucketLabel } from '../../../shared/utils/recipeTime';
 import { dietBadgeLabel } from '../../constants/dietOptions';
 import { colors } from '../../theme/colors';
 import { fontFamilies } from '../../theme/fonts';
@@ -86,7 +87,7 @@ function RecipeFeedCardInner({
                   </Text>
                 </View>
                 <View style={styles.pillTime}>
-                  <Text style={styles.pillTimeText}>{recipe.cookTimeMinutes} min</Text>
+                  <Text style={styles.pillTimeText}>{getRecipeTimeBucketLabel(recipe.cookTimeMinutes)}</Text>
                 </View>
               </View>
               <View style={styles.imageActions}>
@@ -152,7 +153,7 @@ function RecipeFeedCardInner({
             <View style={styles.metaIcons}>
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={18} color={colors.textMuted} />
-                <Text style={styles.metaText}>{recipe.cookTimeMinutes} min</Text>
+                <Text style={styles.metaText}>{getRecipeTimeBucketLabel(recipe.cookTimeMinutes)}</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="restaurant-outline" size={18} color={colors.textMuted} />

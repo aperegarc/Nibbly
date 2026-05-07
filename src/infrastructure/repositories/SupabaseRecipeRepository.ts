@@ -238,6 +238,13 @@ export class SupabaseRecipeRepository implements RecipeRepository {
     if (typeof query.filters?.maxCookTimeMinutes === 'number') {
       request = request.lte('cook_time_minutes', query.filters.maxCookTimeMinutes);
     }
+    if (query.filters?.timeBucket === 'short') {
+      request = request.lte('cook_time_minutes', 20);
+    } else if (query.filters?.timeBucket === 'medium') {
+      request = request.gt('cook_time_minutes', 20).lte('cook_time_minutes', 45);
+    } else if (query.filters?.timeBucket === 'long') {
+      request = request.gt('cook_time_minutes', 45);
+    }
 
     if (query.filters?.difficulty) {
       request = request.eq('difficulty', query.filters.difficulty);

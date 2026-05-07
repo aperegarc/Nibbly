@@ -20,6 +20,7 @@ import {
   recipeIngredientsCoveredByShoppingLabels,
   recipeMatchesFilters,
 } from '../../shared/utils/recipeFilterMatch';
+import { getRecipeTimeBucketLabel } from '../../shared/utils/recipeTime';
 import { RecipeFilterModal } from '../components/RecipeFilterModal';
 import { SignOutHeaderButton } from '../components/SignOutHeaderButton';
 import { useFavoriteRecipes } from '../hooks/useFavoriteRecipes';
@@ -206,7 +207,7 @@ export function FavoritesScreen({ navigation }: Props) {
               <Text style={styles.rowTitle} numberOfLines={2}>
                 {item.title}
               </Text>
-              <Text style={styles.rowMeta}>{item.cookTimeMinutes} min</Text>
+              <Text style={styles.rowMeta}>{getRecipeTimeBucketLabel(item.cookTimeMinutes)}</Text>
               <Pressable
                 onPress={() => handleRemoveFavorite(item.id, item.title)}
                 accessibilityRole="button"

@@ -1,5 +1,6 @@
 import type { Recipe } from '../../domain/entities/Recipe';
 import type { RecipeFilters } from '../../domain/repositories/RecipeRepository';
+import { getRecipeTimeBucket } from './recipeTime';
 
 const MIN_SUBSTRING_LEN = 4;
 
@@ -45,6 +46,9 @@ export function recipeMatchesFilters(recipe: Recipe, filters: RecipeFilters): bo
     Number.isFinite(filters.maxCookTimeMinutes) &&
     recipe.cookTimeMinutes > filters.maxCookTimeMinutes
   ) {
+    return false;
+  }
+  if (filters.timeBucket && getRecipeTimeBucket(recipe.cookTimeMinutes) !== filters.timeBucket) {
     return false;
   }
   if (filters.difficulty && recipe.difficulty !== filters.difficulty) {

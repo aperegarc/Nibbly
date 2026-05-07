@@ -7,4 +7,6 @@ export interface ShoppingListRepository {
   addItems(userId: string, labels: string[]): Promise<ShoppingListItem[]>;
   setChecked(userId: string, itemId: string, checked: boolean): Promise<void>;
   removeItem(userId: string, itemId: string): Promise<void>;
+  clearCheckedByUser(userId: string): Promise<void>;
+  clearByUser(userId: string): Promise<void>;
 }

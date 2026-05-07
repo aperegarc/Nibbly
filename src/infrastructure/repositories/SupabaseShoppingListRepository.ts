@@ -136,4 +136,25 @@ export class SupabaseShoppingListRepository implements ShoppingListRepository {
       throw new AppError(error.message || 'No se pudo borrar el ítem.', 'SHOPPING_LIST_DELETE_FAILED');
     }
   }
+
+  public async clearCheckedByUser(userId: string): Promise<void> {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.from('shopping_list_items').delete().eq('user_id', userId).eq('checked', true);
+
+    if (error) {
+      throw new AppError(
+        error.message || 'No se pudieron limpiar los ítems comprados.',
+        'SHOPPING_LIST_CLEAR_CHECKED_FAILED',
+      );
+    }
+  }
+
+  public async clearByUser(userId: string): Promise<void> {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.from('shopping_list_items').delete().eq('user_id', userId);
+
+    if (error) {
+      throw new AppError(error.message || 'No se pudo limpiar la lista.', 'SHOPPING_LIST_CLEAR_FAILED');
+    }
+  }
 }
